@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# tmux-guia — abre el mapa de atajos y la guía de este repo
+# (docs/CHEATSHEET.md seguido de docs/GUIA.md).
+# install.sh la enlaza en ~/.local/bin. Dentro de tmux: Alt+h.
+set -euo pipefail
+
+docs="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../docs"
+
+if command -v less >/dev/null; then
+    # Sin LESSCHARSET, con locale C (servidores mínimos) less toma el texto por binario
+    cat "$docs/CHEATSHEET.md" "$docs/GUIA.md" |
+        LESSCHARSET=utf-8 less -Ps'tmux-guia · flechas y RePág/AvPág para moverte · /texto busca · q sale'
+else
+    cat "$docs/CHEATSHEET.md" "$docs/GUIA.md"
+fi
