@@ -11,6 +11,7 @@
 #   2. Comprueba que .tmux.conf carga sin errores con esa versión de tmux.
 #   3. Enlaza ~/.tmux.conf a este repo (con backup de la config anterior).
 #   4. Enlaza el comando tmux-guia en ~/.local/bin.
+#   5. Aplica la config a los tmux que ya estén en marcha, sin cerrar sesiones.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,8 +20,7 @@ CONF_DST="$HOME/.tmux.conf"
 GUIA_SRC="$REPO_DIR/bin/tmux-guia"
 GUIA_DST="$HOME/.local/bin/tmux-guia"
 
-info() { printf '==> %s\n' "$*"; }
-die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+. "$REPO_DIR/lib/comun.sh"
 
 case "${1:-}" in
     "")           ACTUALIZAR=0 ;;
@@ -113,7 +113,5 @@ link_guia
 # tmux carga /etc/tmux.conf antes que la del usuario: rompería el mapa único
 [ -e /etc/tmux.conf ] && info "AVISO: existe /etc/tmux.conf y se carga antes que ~/.tmux.conf"
 
-if tmux ls >/dev/null 2>&1; then
-    info "hay un tmux en marcha: aplica la config con 'tmux source-file ~/.tmux.conf'"
-fi
+tmux_reload
 info "listo"

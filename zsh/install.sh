@@ -112,13 +112,11 @@ info "config válida con $(zsh --version)"
 
 link_with_backup "$CONF_SRC" "$CONF_DST"
 
-# Los panes de tmux arrancan en zsh si ~/.tmux.conf es el de este repo
+# Los panes de tmux arrancan en zsh si ~/.tmux.conf es el de este repo. En los
+# tmux en marcha se aplica ya: los panes nuevos salen en zsh, los abiertos siguen igual.
 if link_is_ours "$REPO_DIR/.tmux.conf" "$HOME/.tmux.conf"; then
-    if [ -n "$(tmux_sockets)" ]; then
-        info "hay un tmux en marcha: Ctrl+B R (o 'tmux source-file ~/.tmux.conf') y los panes nuevos arrancan en zsh"
-    else
-        info "los panes de tmux arrancarán en zsh"
-    fi
+    tmux_reload
+    info "los panes nuevos de tmux arrancan en zsh"
 else
     info "AVISO: ~/.tmux.conf no es de este repo: tmux no arrancará en zsh (./install tmux, o escribe zsh)"
 fi

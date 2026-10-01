@@ -31,9 +31,14 @@ cd ~/GitHub/personal/tmux-config
 3. Enlaza `~/.tmux.conf` a este repo. Si ya había una config, la guarda como
    `~/.tmux.conf.bak.<fecha>`.
 4. Enlaza el comando `tmux-guia` en `~/.local/bin`.
+5. Aplica la config a los tmux que ya estén en marcha, **sin cerrar sesiones**
+   (lo mismo que `Ctrl+B R`). Los que se lanzaron con otra config (`-f`) no
+   los toca.
 
-Para traer cambios: `git pull && ./install tmux zsh` (los que tengas). Dentro de
-tmux, `Ctrl+B R` recarga la config.
+Para traer cambios: `git pull && ./install tmux zsh` (los que tengas), y se
+aplican solos a los tmux abiertos. Dentro de tmux, `Ctrl+B R` recarga la config.
+Si se quita un atajo de la config, sigue activo hasta reiniciar tmux
+(`tmux kill-server`, que sí cierra las sesiones).
 
 ## Desinstalar
 
@@ -93,8 +98,9 @@ Lo que hace `./install zsh` (también idempotente):
 3. Comprueba que `zsh/.zshrc` carga sin errores con esa versión de zsh.
 4. Enlaza `~/.zshrc` a este repo (con backup `~/.zshrc.bak.<fecha>`).
 
-Tras instalarlo con tmux en marcha: `Ctrl+B R` y los panes nuevos arrancan en
-zsh. Para usarlo también fuera de tmux, en tu propia máquina:
+Si tmux ya está en marcha, los panes nuevos arrancan en zsh directamente; los
+que ya estaban abiertos siguen en su shell. Para usarlo también fuera de tmux,
+en tu propia máquina:
 `chsh -s "$(command -v zsh)"`.
 
 `./uninstall zsh` quita el enlace, devuelve los panes nuevos de los tmux en

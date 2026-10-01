@@ -107,3 +107,29 @@ tmux_sockets() {
     done
     return 0
 }
+
+# Aplica ~/.tmux.conf a los tmux en marcha de este usuario sin cerrar sesiones
+# (lo mismo que Ctrl+B R). Solo a los que arrancaron con esa config o sin
+# ninguna (tmux ya corría al instalar); los lanzados con otra (-f) no se tocan.
+# Un atajo que se quite de la config sigue activo hasta reiniciar tmux.
+tmux_reload() {
+    local conf="$HOME/.tmux.conf" real s files f ok lista
+    [ -e "$conf" ] || return 0
+    real="$(readlink -f "$conf")"
+    while read -r s; do
+        [ -n "$s" ] || continue
+        files="$(tmux -S "$s" display -p '#{config_files}' 2>/dev/null)" || continue
+        ok=1
+        IFS=, read -ra lista <<<"$files"
+        for f in ${lista[@]+"${lista[@]}"}; do
+            case "$f" in "$real"|/etc/tmux.conf) ;; *) ok=0 ;; esac
+        done
+        if [ "$ok" -eq 0 ]; then
+            info "tmux '$(basename "$s")' arrancó con otra config ($files): no se toca"
+        elif tmux -S "$s" source-file "$conf"; then
+            info "config aplicada al tmux '$(basename "$s")' en marcha, sin cerrar sus sesiones"
+        else
+            info "AVISO: no se pudo aplicar la config al tmux '$(basename "$s")'"
+        fi
+    done < <(tmux_sockets)
+}
