@@ -62,6 +62,16 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     tmux kill-session -t trabajo  eliminar una sesión
     tmux-guia                     esta guía
 
+## En zsh (si instalaste ./install zsh)
+
+    → o Fin               aceptar la sugerencia en gris
+    Ctrl+→                aceptar solo una palabra de la sugerencia
+    ↑ / ↓                 historial filtrado por lo ya escrito
+    Ctrl+R                buscar en el historial (fzf)
+    Ctrl+T / Alt+c        insertar un fichero / cambiar de directorio (fzf)
+    Tab Tab               menú de completado, flechas para elegir
+    " comando"            empezar con espacio: no se guarda en el historial
+
 ## Si un atajo Alt no hace nada
 
 Tu terminal se lo queda antes de que llegue a tmux. Por defecto:

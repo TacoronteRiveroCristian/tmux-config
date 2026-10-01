@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# install — instala o actualiza componentes de este repo.
+#
+#   ./install tmux                  un componente
+#   ./install tmux zsh              varios, en ese orden
+#   ./install zsh --actualizar      además, actualizar sus paquetes
+#   ./install                       lista los componentes
+#
+# Cada componente es un directorio con install.sh y uninstall.sh. Se pueden
+# ejecutar tantas veces como se quiera: git pull && ./install tmux zsh
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ACCION="$(basename "$0")"   # install o uninstall (uninstall es un enlace a este)
+
+. "$REPO_DIR/lib/comun.sh"
+
+componentes() {
+    local f
+    for f in "$REPO_DIR"/*/"$ACCION.sh"; do basename "$(dirname "$f")"; done
+}
+
+uso() {
+    local c
+    echo "uso: ./$ACCION <componente>...$([ "$ACCION" = install ] && echo ' [--actualizar]')"
+    echo
+    echo "Componentes:"
+    for c in $(componentes); do
+        # la descripción es la segunda línea de su script: "# zsh/install.sh — ..."
+        printf '  %-8s %s\n' "$c" "$(sed -n '2s/^# [^ ]* — //p' "$REPO_DIR/$c/$ACCION.sh")"
+    done
+}
+
+comps=() flags=()
+for a in "$@"; do
+    case "$a" in
+        -h|--help)    uso; exit 0 ;;
+        --actualizar) [ "$ACCION" = install ] || die "$ACCION no admite --actualizar"; flags+=("$a") ;;
+        -*)           uso >&2; exit 2 ;;
+        *)            [ -f "$REPO_DIR/$a/$ACCION.sh" ] || die "componente desconocido: $a (./$ACCION para ver la lista)"
+                      comps+=("$a") ;;
+    esac
+done
+[ ${#comps[@]} -gt 0 ] || { uso; exit 2; }
+
+for c in "${comps[@]}"; do
+    [ ${#comps[@]} -eq 1 ] || info "--- $c"
+    "$REPO_DIR/$c/$ACCION.sh" ${flags[@]+"${flags[@]}"}
+done

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# uninstall.sh — deshace install.sh y desinstala tmux.
+# tmux/uninstall.sh — deshace tmux/install.sh y desinstala tmux.
 #
-#   ./uninstall.sh
+#   ./uninstall tmux
 #
 # Qué hace (enseña la lista y pide confirmación antes):
 #   1. Cierra los servidores tmux de este usuario, con todas sus sesiones.
@@ -9,10 +9,10 @@
 #      (si son otra cosa, no los toca).
 #   3. Desinstala el paquete tmux. apt/dnf enseña qué más se quita y vuelve a
 #      pedir confirmación.
-# No borra los backups ~/.tmux.conf.bak.* que dejó install.sh.
+# No borra los backups ~/.tmux.conf.bak.* que dejó tmux/install.sh.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF_SRC="$REPO_DIR/.tmux.conf"
 CONF_DST="$HOME/.tmux.conf"
 GUIA_SRC="$REPO_DIR/bin/tmux-guia"
@@ -96,7 +96,7 @@ if pkg_installed; then
         $SUDO apt-get purge tmux
         # ubuntu-server depende de tmux: apt lo quita con él
         if [ "$had_meta" -eq 1 ] && ! deb_installed ubuntu-server; then
-            info "AVISO: se ha quitado el metapaquete ubuntu-server; tras ./install.sh recupéralo con: sudo apt install ubuntu-server"
+            info "AVISO: se ha quitado el metapaquete ubuntu-server; tras ./install tmux recupéralo con: sudo apt install ubuntu-server"
         fi
     elif command -v dnf >/dev/null; then
         $SUDO dnf remove tmux

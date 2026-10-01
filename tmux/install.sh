@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# install.sh — instala o actualiza tmux y enlaza la configuración de este repo.
+# tmux/install.sh — instala o actualiza tmux y enlaza su configuración.
 #
-# Se puede ejecutar tantas veces como se quiera:
-#   ./install.sh               instalar (sudo solo si falta tmux) y enlazar
-#   ./install.sh --actualizar  además, actualizar tmux a la última versión de la distro
-#   git pull && ./install.sh   traer cambios del repo y aplicarlos
+# Se lanza desde la raíz del repo y se puede ejecutar tantas veces como se quiera:
+#   ./install tmux               instalar (sudo solo si falta tmux) y enlazar
+#   ./install tmux --actualizar  además, actualizar tmux a la última versión de la distro
+#   git pull && ./install tmux   traer cambios del repo y aplicarlos
 #
 # Qué hace:
 #   1. Instala tmux si falta (o lo actualiza con --actualizar).
@@ -13,7 +13,7 @@
 #   4. Enlaza el comando tmux-guia en ~/.local/bin.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF_SRC="$REPO_DIR/.tmux.conf"
 CONF_DST="$HOME/.tmux.conf"
 GUIA_SRC="$REPO_DIR/bin/tmux-guia"
@@ -25,7 +25,7 @@ die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 case "${1:-}" in
     "")           ACTUALIZAR=0 ;;
     --actualizar) ACTUALIZAR=1 ;;
-    *)            die "uso: ./install.sh [--actualizar]" ;;
+    *)            die "uso: ./install tmux [--actualizar]" ;;
 esac
 
 install_tmux() {
@@ -100,7 +100,7 @@ elif [ "$ACTUALIZAR" -eq 1 ]; then
     info "actualizando tmux"
     install_tmux
 else
-    info "tmux ya instalado (para actualizarlo: ./install.sh --actualizar)"
+    info "tmux ya instalado (para actualizarlo: ./install tmux --actualizar)"
 fi
 info "$(tmux -V) instalado"
 
