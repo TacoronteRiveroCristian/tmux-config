@@ -102,6 +102,10 @@ alias grep='grep --color=auto'
 typeset -U path
 [[ -d ~/.local/bin ]] && path=(~/.local/bin $path)
 
+# Editor por defecto (git commit, crontab -e, sudoedit...): el neovim de
+# ./install vim. Fuera de tmux, el de la distro. Otro: en ~/.zshrc.local
+[[ -x ~/.local/bin/nvim ]] && export EDITOR="$HOME/.local/bin/nvim" VISUAL="$HOME/.local/bin/nvim"
+
 # --- Plugins: los paquetes de la distro ------------------------------------------
 #
 # Cada uno se carga solo si está instalado (en Rocky salen de EPEL: sin EPEL,

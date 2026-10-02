@@ -120,5 +120,5 @@ if link_is_ours "$REPO_DIR/.tmux.conf" "$HOME/.tmux.conf"; then
 else
     info "AVISO: ~/.tmux.conf no es de este repo: tmux no arrancará en zsh (./install tmux, o escribe zsh)"
 fi
-info "tu shell de login no cambia. Para usar zsh también fuera de tmux (solo en tu propia cuenta): chsh -s $(command -v zsh)"
+info "tu shell de login no cambia: fuera de tmux todo sigue como lo trae la distro"
 info "listo"

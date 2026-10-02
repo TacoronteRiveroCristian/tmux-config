@@ -115,8 +115,9 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     ]c  ·  [c             siguiente cambio · anterior
     Espacio vp · vr · vb  ver el cambio · deshacerlo · quién cambió la línea
 
-  Ficheros del sistema: EDITOR=nvim sudoedit /etc/fichero (con tu config, sin
-  abrir el editor como root; sin EDITOR, sudoedit abre nano o vi)
+  En tmux, neovim es el editor por defecto: git commit, crontab -e, sudoedit...
+  Ficheros del sistema: sudoedit /etc/fichero (con tu config, sin abrir el
+  editor como root)
 
 ## Si un atajo Alt no hace nada
 

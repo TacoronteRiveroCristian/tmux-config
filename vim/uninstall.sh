@@ -98,4 +98,7 @@ while read -r p; do
 done < <(state_list vim)
 state_set vim ${restantes[@]+"${restantes[@]}"}
 
+# zsh/.zshrc deja de ponerlo en los panes nuevos; los abiertos lo conservan
+[ "${EDITOR:-}" != "$NVIM_LINK" ] ||
+    info "en los panes ya abiertos EDITOR sigue apuntando a neovim: abre uno nuevo (o unset EDITOR VISUAL)"
 info "listo"

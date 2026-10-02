@@ -18,6 +18,9 @@
 #   4. Descarga los plugins (fijados a un commit) y los servidores LSP en
 #      ~/.local/share/nvim/tmux-config, comprueba que todo carga y enlaza
 #      ~/.config/nvim/init.lua (con backup de la config anterior).
+#   5. neovim queda como editor por defecto (EDITOR y VISUAL: git commit,
+#      crontab -e, sudoedit...) dentro de tmux: lo pone zsh/.zshrc si existe
+#      ~/.local/bin/nvim. Fuera de tmux sigue el de la distro; bash no se toca.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -185,6 +188,19 @@ link_nvim() {
     link_with_backup "$INIT_SRC" "$NVIM_CONF/init.lua"
 }
 
+# EDITOR lo pone zsh/.zshrc: aquí solo se comprueba que va a llegar
+editor_nvim() {
+    local ed
+    if link_is_ours "$REPO_DIR/zsh/.zshrc" "$HOME/.zshrc"; then
+        info "neovim es el editor por defecto en los panes nuevos de tmux (git commit, crontab -e, sudoedit...)"
+    else
+        info "AVISO: ~/.zshrc no es de este repo: neovim no será el editor por defecto (./install zsh)"
+    fi
+    # git usa su core.editor antes que EDITOR
+    ed="$(git config --global --get core.editor 2>/dev/null || true)"
+    [ -z "$ed" ] || info "AVISO: git seguirá abriendo su core.editor ($ed). Para usar neovim: git config --global --unset core.editor"
+}
+
 install_paquetes
 command -v vim >/dev/null || die "vim no está instalado"
 info "$(vim --version | head -n 1) instalado"
@@ -195,6 +211,7 @@ install_nvim
 if [ "$NVIM_OK" -eq 1 ]; then
     setup_nvim
     link_nvim
+    editor_nvim
     case ":$PATH:" in
         *":$HOME/.local/bin:"*) ;;
         *) info "AVISO: ~/.local/bin no está en el PATH: abre una sesión SSH nueva (o usa $NVIM_LINK)" ;;
@@ -202,5 +219,5 @@ if [ "$NVIM_OK" -eq 1 ]; then
 fi
 
 info "aprender: vimtutor es (vim, en español) · :Tutor (neovim) · Espacio ? (mapa de atajos)"
-info "ficheros del sistema: EDITOR=nvim sudoedit /etc/fichero (con tu config, sin abrir el editor como root)"
+info "ficheros del sistema, en tmux: sudoedit /etc/fichero (neovim con tu config, sin abrirlo como root)"
 info "listo"

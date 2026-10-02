@@ -102,9 +102,9 @@ Lo que hace `./install zsh` (también idempotente):
 4. Enlaza `~/.zshrc` a este repo (con backup `~/.zshrc.bak.<fecha>`).
 
 Si tmux ya está en marcha, los panes nuevos arrancan en zsh directamente; los
-que ya estaban abiertos siguen en su shell. Para usarlo también fuera de tmux,
-en tu propia máquina:
-`chsh -s "$(command -v zsh)"`.
+que ya estaban abiertos siguen en su shell. Fuera de tmux todo queda como lo
+trae la distro, a propósito: lo configurado vive dentro de tmux y es igual en
+todos los servidores. Por eso ningún componente toca la config de bash.
 
 `./uninstall zsh` quita el enlace, devuelve los panes nuevos de los tmux en
 marcha a la shell de login y desinstala **solo los paquetes que instaló
@@ -144,9 +144,14 @@ neovim trae:
 - Deshacer se conserva al cerrar el fichero, y al reabrirlo vuelve a la línea
   donde estabas. Al salir con cambios sin guardar, pregunta en vez de dar error.
 - Sin iconos: se ve igual con cualquier fuente.
-- Para ficheros del sistema: `EDITOR=nvim sudoedit /etc/fichero`. Edita una
-  copia con tu config y la guarda con sudo, sin abrir el editor como root. Sin
-  `EDITOR`, sudoedit abre nano (Debian/Ubuntu) o vi (Rocky).
+- Dentro de tmux (con `./install zsh`) es el **editor por defecto**: lo que
+  abren `git commit`, `crontab -e`, `sudoedit`, `systemctl edit`... (variables
+  `EDITOR` y `VISUAL`, que pone `.zshrc`). Fuera de tmux sigue el de la distro:
+  nano (Debian/Ubuntu) o vi (Rocky). Con `sudo` (`sudo crontab -e`, `visudo`)
+  también, porque sudo no pasa `EDITOR` y abrir tu neovim como root no es buena
+  idea.
+- Para ficheros del sistema, en tmux: `sudoedit /etc/fichero`. Edita una copia
+  con tu config y la guarda con sudo, sin abrir el editor como root.
 - Lo propio de cada máquina: `~/.config/nvim/local.lua` (neovim) y
   `~/.vimrc.local` (vim). Más servidores LSP en una máquina: `:Mason`.
 
@@ -163,6 +168,10 @@ Lo que hace `./install vim` (idempotente):
    y los servidores LSP en `~/.local/share/nvim/tmux-config`, comprueba que todo
    carga en su versión y enlaza `~/.config/nvim/init.lua` (con backup de la
    config anterior).
+5. No toca la config de bash: neovim es el editor por defecto porque
+   `zsh/.zshrc` lo pone si existe `~/.local/bin/nvim`. Sin `./install zsh` lo
+   avisa. Para otro editor, `export EDITOR=...` en `~/.zshrc.local`. Si git
+   tiene `core.editor`, también lo avisa: git lo usa antes que `EDITOR`.
 
 La primera vez descarga unos cientos de MB (node, plugins, servidores LSP) y
 tarda varios minutos; las siguientes no descarga nada. `./uninstall vim` quita
