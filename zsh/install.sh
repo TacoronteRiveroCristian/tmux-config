@@ -13,16 +13,20 @@
 #      ~/.local/state/tmux-config/zsh.paquetes: ./uninstall zsh quita esos y no
 #      los que ya estaban.
 #   3. Comprueba que zsh/.zshrc carga sin errores con esa versión de zsh.
-#   4. Enlaza ~/.zshrc a este repo (con backup de la config anterior).
+#   4. Enlaza ~/.local/opt/tmux-config/zsh/.zshrc a este repo. ~/.zshrc no se
+#      toca: los panes de tmux arrancan zsh con ZDOTDIR en ese directorio, y
+#      "zsh" tecleado fuera de tmux sigue como lo trae la distro.
+#   5. Si quedó el ~/.zshrc enlazado de la versión anterior, lo quita y
+#      devuelve a su sitio tu ~/.zshrc de antes (el backup ~/.zshrc.bak.<fecha>).
 # No cambia la shell de login: zsh arranca en los panes de tmux.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF_SRC="$REPO_DIR/zsh/.zshrc"
-CONF_DST="$HOME/.zshrc"
 PAQUETES=(zsh zsh-autosuggestions zsh-syntax-highlighting fzf)
 
 . "$REPO_DIR/lib/comun.sh"
+CONF_DST="$TC_DIR/zsh/.zshrc"
 
 case "${1:-}" in
     "")           ACTUALIZAR=0 ;;
@@ -47,7 +51,8 @@ install_paquetes() {
             # install también actualiza los que ya están si hay versión nueva
             if [ "$ACTUALIZAR" -eq 1 ]; then instalar=("${PAQUETES[@]}"); else instalar=("${faltan[@]}"); fi
             info "instalando ${instalar[*]}"
-            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${instalar[@]}"
+            # sin recomendados: solo lo imprescindible, que no cambie nada de lo que ya había
+            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${instalar[@]}"
             ;;
         dnf)
             for p in "${faltan[@]}"; do
@@ -111,6 +116,7 @@ check_conf
 info "config válida con $(zsh --version)"
 
 link_with_backup "$CONF_SRC" "$CONF_DST"
+unlink_old "$CONF_SRC" "$HOME/.zshrc" || true
 
 # Los panes de tmux arrancan en zsh si ~/.tmux.conf es el de este repo. En los
 # tmux en marcha se aplica ya: los panes nuevos salen en zsh, los abiertos siguen igual.
@@ -118,7 +124,7 @@ if link_is_ours "$REPO_DIR/.tmux.conf" "$HOME/.tmux.conf"; then
     tmux_reload
     info "los panes nuevos de tmux arrancan en zsh"
 else
-    info "AVISO: ~/.tmux.conf no es de este repo: tmux no arrancará en zsh (./install tmux, o escribe zsh)"
+    info "AVISO: ~/.tmux.conf no es de este repo: tmux no arrancará en zsh (./install tmux)"
 fi
 info "tu shell de login no cambia: fuera de tmux todo sigue como lo trae la distro"
 info "listo"

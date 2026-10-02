@@ -4,6 +4,11 @@
 info() { printf '==> %s\n' "$*"; }
 die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+# Todo lo instalado del repo vive aquí, salvo ~/.tmux.conf (la única puerta):
+# solo lo usa lo que arranca dentro de tmux. Fuera, nada lo lee ni está en el PATH.
+# shellcheck disable=SC2034  # lo usan los scripts que cargan este fichero
+TC_DIR="$HOME/.local/opt/tmux-config"
+
 # sudo solo para el gestor de paquetes, y solo si no somos root
 SUDO=""
 need_sudo() {
@@ -59,6 +64,54 @@ link_with_backup() {
     mkdir -p "$(dirname "$dst")"
     ln -s "$src" "$dst"
     info "${dst/#$HOME/\~} -> $src"
+}
+
+# --- Migración: lo que dejó en $HOME la versión anterior del repo -------------
+#
+# Antes los enlaces iban en $HOME (~/.zshrc, ~/.vimrc, ~/.config/nvim/init.lua,
+# ~/.local/bin) y se notaban fuera de tmux. Cada install.sh quita los suyos.
+
+# restore_backup DST REL: devuelve a DST la config que había antes de enlazarlo
+# (el DST.bak.<fecha> que guardó link_with_backup). Solo si hay exactamente uno:
+# con varios los enseña y no elige. No cuentan los que son a su vez un enlace a
+# un clon de este repo (o a algo que ya no existe). Nunca borra un backup.
+restore_backup() {
+    local dst="$1" rel="$2" b t cands=()
+    if [ -e "$dst" ] || [ -L "$dst" ]; then return 0; fi
+    for b in "$dst".bak.*; do
+        [[ "$b" =~ \.bak\.[0-9]{8}-[0-9]{6}$ ]] || continue
+        if [ -L "$b" ] && [[ "$(readlink "$b")" == */"$rel" ]]; then
+            t="$(readlink -f "$b" || true)"
+            if [ ! -e "$t" ] || [ -e "${t%/"$rel"}/lib/comun.sh" ]; then continue; fi
+        fi
+        cands+=("$b")
+    done
+    case ${#cands[@]} in
+        0) ;;
+        1) mv "${cands[0]}" "$dst"
+           info "tu config anterior vuelve a su sitio: ${cands[0]/#$HOME/\~} -> ${dst/#$HOME/\~}" ;;
+        *) info "AVISO: hay varios backups de ${dst/#$HOME/\~}; no se elige ninguno (mueve tú el que quieras):"
+           printf '       %s\n' "${cands[@]/#$HOME/\~}" ;;
+    esac
+}
+
+# unlink_old SRC DST: quita DST si es un enlace a SRC (aunque SRC ya no exista)
+# y restaura el backup de lo que había antes. Falla si no había nada que quitar.
+unlink_old() {
+    local src="$1" dst="$2"
+    link_is_ours "$src" "$dst" || return 1
+    rm "$dst"
+    info "quitado el enlace antiguo ${dst/#$HOME/\~} (fuera de tmux ya no se ve nada del repo)"
+    restore_backup "$dst" "${src#"$REPO_DIR"/}"
+}
+
+# rmdir_vacio DIR...: quita los directorios que hayan quedado vacíos
+rmdir_vacio() {
+    local d
+    for d in "$@"; do
+        [ -d "$d" ] && rmdir "$d" 2>/dev/null && info "quitado ${d/#$HOME/\~} (vacío)"
+    done
+    return 0
 }
 
 # --- Estado: qué paquetes instaló cada componente -----------------------------

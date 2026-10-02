@@ -3,8 +3,9 @@
 #
 # Requiere zsh >= 5.8 (probada en 5.8, 5.8.1 y 5.9). Se instala con ./install zsh.
 # No cambia la shell de login: zsh arranca en los panes de tmux (.tmux.conf lo
-# detecta). Fuera de tmux, en "ssh host comando", como root y para los demás
-# usuarios, todo sigue en bash.
+# detecta) con ZDOTDIR=~/.local/opt/tmux-config/zsh, donde está enlazado este
+# fichero. Fuera de tmux, en "ssh host comando", como root y para los demás
+# usuarios, todo sigue en bash; y "zsh" tecleado fuera no carga esta config.
 #
 # Probar cambios sin tocar la config instalada:
 #   ZDOTDIR="$PWD/zsh" zsh
@@ -98,13 +99,19 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias grep='grep --color=auto'
 
-# ~/.local/bin (tmux-guia): ~/.profile lo añade al PATH en bash, zsh no lo lee
+# ~/.local/bin: ~/.profile lo añade al PATH en bash, zsh no lo lee. Delante, los
+# comandos del repo (nvim, vi, vim, tmux-guia), que solo están en el PATH aquí
 typeset -U path
 [[ -d ~/.local/bin ]] && path=(~/.local/bin $path)
+[[ -d ~/.local/opt/tmux-config/bin ]] && path=(~/.local/opt/tmux-config/bin $path)
 
 # Editor por defecto (git commit, crontab -e, sudoedit...): el neovim de
-# ./install vim. Fuera de tmux, el de la distro. Otro: en ~/.zshrc.local
-[[ -x ~/.local/bin/nvim ]] && export EDITOR="$HOME/.local/bin/nvim" VISUAL="$HOME/.local/bin/nvim"
+# ./install vim, con su config aparte (NVIM_APPNAME: ~/.config/tmux-config-nvim,
+# no ~/.config/nvim). Fuera de tmux, el de la distro. Otro: en ~/.zshrc.local
+if [[ -x ~/.local/opt/tmux-config/bin/nvim ]]; then
+    export NVIM_APPNAME=tmux-config-nvim
+    export EDITOR="$HOME/.local/opt/tmux-config/bin/nvim" VISUAL="$HOME/.local/opt/tmux-config/bin/nvim"
+fi
 
 # --- Plugins: los paquetes de la distro ------------------------------------------
 #

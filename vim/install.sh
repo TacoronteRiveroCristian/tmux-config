@@ -1,41 +1,58 @@
 #!/usr/bin/env bash
-# vim/install.sh — instala vim y neovim y enlaza su configuración.
+# vim/install.sh — instala neovim (dentro de tmux, también vi y vim) y enlaza su configuración.
 #
 # Se lanza desde la raíz del repo y se puede ejecutar tantas veces como se quiera:
 #   ./install vim               instalar lo que falte (sudo solo si falta algo) y enlazar
 #   ./install vim --actualizar  además, actualizar los paquetes a la última versión de la distro
 #
+# Fuera de tmux no cambia nada: los comandos quedan en ~/.local/opt/tmux-config/bin,
+# que solo está en el PATH de los panes, y la config de neovim va aparte
+# (NVIM_APPNAME=tmux-config-nvim), sin tocar ~/.config/nvim ni el vi de la distro.
+#
 # Qué hace:
-#   1. Instala con apt/dnf vim y lo que usa neovim: git, curl, unzip, ripgrep
-#      (buscar texto), shellcheck, node y npm (servidores LSP). En Rocky/RHEL
-#      ripgrep y shellcheck están en EPEL: sin EPEL avisa y sigue sin ellos.
-#      Apunta los que instala en ~/.local/state/tmux-config/vim.paquetes:
-#      ./uninstall vim quita esos y no los que ya estaban.
-#   2. vim: comprueba que vim/vimrc carga sin errores y enlaza ~/.vimrc.
-#   3. neovim: instala la versión oficial fijada abajo en ~/.local/opt (sin
-#      root), comprobando su sha256, con el enlace ~/.local/bin/nvim. Las de las
-#      distros son demasiado antiguas (0.6 a 0.10) para los plugins.
-#   4. Descarga los plugins (fijados a un commit) y los servidores LSP en
-#      ~/.local/share/nvim/tmux-config, comprueba que todo carga y enlaza
-#      ~/.config/nvim/init.lua (con backup de la config anterior).
-#   5. neovim queda como editor por defecto (EDITOR y VISUAL: git commit,
-#      crontab -e, sudoedit...) dentro de tmux: lo pone zsh/.zshrc si existe
-#      ~/.local/bin/nvim. Fuera de tmux sigue el de la distro; bash no se toca.
+#   1. Instala con apt/dnf lo que usa neovim: git, curl, unzip, ripgrep (buscar
+#      texto), shellcheck, node y npm (servidores LSP). En Rocky/RHEL ripgrep
+#      y shellcheck están en EPEL: sin EPEL avisa y sigue sin ellos. Apunta los
+#      que instala en ~/.local/state/tmux-config/vim.paquetes: ./uninstall vim
+#      quita esos y no los que ya estaban. vim no se instala.
+#   2. Instala la versión oficial de neovim fijada abajo en
+#      ~/.local/opt/tmux-config/nvim-<versión> (sin root), comprobando su sha256,
+#      y enlaza nvim, vi, vim, view y vimdiff en ~/.local/opt/tmux-config/bin.
+#      Las de las distros son demasiado antiguas (0.6 a 0.10) para los plugins.
+#   3. Descarga los plugins (fijados a un commit) y los servidores LSP en
+#      ~/.local/share/tmux-config-nvim, comprueba que todo carga y enlaza
+#      ~/.config/tmux-config-nvim/init.lua.
+#   4. neovim queda como editor por defecto (EDITOR y VISUAL: git commit,
+#      crontab -e, sudoedit...) dentro de tmux: lo pone zsh/.zshrc. Fuera de
+#      tmux sigue el de la distro; bash no se toca.
+#   5. Quita lo que dejó en $HOME la versión anterior (~/.vimrc,
+#      ~/.config/nvim/init.lua, ~/.local/bin/nvim y su neovim, sus plugins) y
+#      devuelve a su sitio tus configs de antes (los backups *.bak.<fecha>).
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VIMRC_SRC="$REPO_DIR/vim/vimrc"
-VIMRC_DST="$HOME/.vimrc"
 INIT_SRC="$REPO_DIR/nvim/init.lua"
-NVIM_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
 
 NVIM_VERSION=v0.12.5
 NVIM_SHA256_x86_64=bce0f56eda1f1b1db6eee8f4133d7a38813ea07933837dd1777411ca384c6875
 NVIM_SHA256_arm64=1aa5ca085249580ae0f91eb14f27ec0919773ff2d99a163d03f3d6c21ac29725
-NVIM_DIR="$HOME/.local/opt/nvim-$NVIM_VERSION"
-NVIM_LINK="$HOME/.local/bin/nvim"
 
 . "$REPO_DIR/lib/comun.sh"
+
+# Config, plugins y estado aparte de los de ~/.config/nvim: neovim los busca por
+# este nombre. Exportado: los nvim --headless de abajo también lo usan (con -u
+# incluido); sin él, los plugins acabarían en ~/.local/share/nvim.
+export NVIM_APPNAME=tmux-config-nvim
+NVIM_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/$NVIM_APPNAME"
+NVIM_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/$NVIM_APPNAME"
+NVIM_DIR="$TC_DIR/nvim-$NVIM_VERSION"
+NVIM_LINK="$TC_DIR/bin/nvim"
+
+# Lo de la versión anterior del repo, en $HOME (se quita en migrar)
+VIEJO_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+VIEJO_ESTADO="${XDG_STATE_HOME:-$HOME/.local/state}/nvim"
+VIEJO_DATOS="${XDG_DATA_HOME:-$HOME/.local/share}/nvim"
+VIEJO_LINK="$HOME/.local/bin/nvim"
 
 case "${1:-}" in
     "")           ACTUALIZAR=0 ;;
@@ -44,9 +61,9 @@ case "${1:-}" in
 esac
 
 case "$(pkg_manager)" in
-    apt) PAQUETES=(vim git unzip ripgrep shellcheck nodejs npm) ;;
-    dnf) PAQUETES=(vim-enhanced git unzip ripgrep ShellCheck nodejs npm) ;;
-    *)   die "gestor de paquetes no soportado (apt o dnf): instala vim a mano" ;;
+    apt) PAQUETES=(git unzip ripgrep shellcheck nodejs npm) ;;
+    dnf) PAQUETES=(git unzip ripgrep ShellCheck nodejs npm) ;;
+    *)   die "gestor de paquetes no soportado (apt o dnf)" ;;
 esac
 # curl solo si falta el comando: en Rocky viene curl-minimal, que choca con el paquete curl
 command -v curl >/dev/null || PAQUETES+=(curl)
@@ -68,7 +85,9 @@ install_paquetes() {
             # install también actualiza los que ya están si hay versión nueva
             if [ "$ACTUALIZAR" -eq 1 ]; then instalar=("${PAQUETES[@]}"); else instalar=("${faltan[@]}"); fi
             info "instalando ${instalar[*]}"
-            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${instalar[@]}"
+            # sin recomendados: solo lo imprescindible, que no cambie nada de lo
+            # que ya había (con ellos, npm traía bash-completion y build-essential)
+            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${instalar[@]}"
             ;;
         dnf)
             for p in "${faltan[@]}"; do
@@ -95,30 +114,15 @@ install_paquetes() {
     fi
 }
 
-# vim: carga con HOME temporal (no toca tu historial ni ~/.vimrc.local), sin
-# errores y con sus plugins
-check_vim() {
-    local tmp plugins err
-    tmp="$(mktemp -d)"
-    plugins='if !exists(":NERDTreeToggle") || !exists(":CtrlP") || !exists("g:loaded_commentary") | cquit | endif'
-    if ! HOME="$tmp" vim -N -u "$VIMRC_SRC" -i NONE -es \
-            -c "redir! > $tmp/mensajes | silent messages | redir END" -c "$plugins" -c 'qa!'; then
-        err="$(cat "$tmp/mensajes" 2>/dev/null)"
-        rm -rf "$tmp"
-        die "$VIMRC_SRC no carga limpio en vim (o faltan sus plugins); no se ha enlazado nada:"$'\n'"$err"
-    fi
-    rm -rf "$tmp"
-}
-
-# neovim oficial en ~/.local/opt/nvim-<versión>, verificado con su sha256.
-# Sin build oficial para esta arquitectura deja NVIM_OK=0 y queda solo vim.
+# neovim oficial en ~/.local/opt/tmux-config/nvim-<versión>, verificado con su
+# sha256. Sin build oficial para esta arquitectura deja NVIM_OK=0.
 NVIM_OK=1
 install_nvim() {
-    local arch sha url tmp nvim_link_actual
+    local arch sha url tmp d n
     case "$(uname -m)" in
         x86_64)        arch=x86_64; sha="$NVIM_SHA256_x86_64" ;;
         aarch64|arm64) arch=arm64;  sha="$NVIM_SHA256_arm64" ;;
-        *) info "AVISO: no hay neovim oficial para $(uname -m): queda vim"; NVIM_OK=0; return 0 ;;
+        *) info "AVISO: no hay neovim oficial para $(uname -m): no se instala"; NVIM_OK=0; return 0 ;;
     esac
     if [ -x "$NVIM_DIR/bin/nvim" ]; then
         info "neovim $NVIM_VERSION ya instalado"
@@ -139,27 +143,43 @@ install_nvim() {
     fi
     "$NVIM_DIR/bin/nvim" --version >/dev/null 2>&1 || die "neovim $NVIM_VERSION no arranca en esta máquina"
 
-    # ~/.local/bin/nvim: el nuestro; si hay otro que no es de este repo, no se toca
-    nvim_link_actual="$(readlink "$NVIM_LINK" 2>/dev/null || true)"
-    if [ -e "$NVIM_LINK" ] && [[ "$nvim_link_actual" != "$HOME/.local/opt/nvim-"* ]]; then
-        info "AVISO: $NVIM_LINK ya existe y no es de este repo: no se toca (el nuestro: $NVIM_DIR/bin/nvim)"
-    else
-        mkdir -p "$(dirname "$NVIM_LINK")"
-        ln -sfn "$NVIM_DIR/bin/nvim" "$NVIM_LINK"
-        info "~/.local/bin/nvim -> $NVIM_DIR/bin/nvim"
-    fi
-    # versiones anteriores instaladas por este script
-    local d
-    for d in "$HOME"/.local/opt/nvim-v*; do
+    # Los comandos, en el PATH solo dentro de tmux (lo pone zsh/.zshrc). vi y vim
+    # son este neovim: valen también para scripts y para core.editor=vim. view y
+    # vimdiff son dos líneas del repo: nvim no cambia de modo según su nombre.
+    mkdir -p "$TC_DIR/bin"
+    ln -sfn "$NVIM_DIR/bin/nvim" "$NVIM_LINK"
+    for n in vi vim; do ln -sfn nvim "$TC_DIR/bin/$n"; done
+    for n in view vimdiff; do ln -sfn "$REPO_DIR/bin/$n" "$TC_DIR/bin/$n"; done
+    info "nvim, vi, vim, view y vimdiff en ${TC_DIR/#$HOME/\~}/bin (en el PATH solo dentro de tmux)"
+
+    # versiones anteriores: en ~/.local/opt/tmux-config todo es de este repo
+    for d in "$TC_DIR"/nvim-v*; do
         if [ -d "$d" ] && [ "$d" != "$NVIM_DIR" ]; then
             rm -rf "$d"
-            info "neovim anterior quitado: $d"
+            info "neovim anterior quitado: ${d/#$HOME/\~}"
+        fi
+    done
+}
+
+# undo y shada de la versión anterior (~/.local/state/nvim): se copian, no se
+# mueven, antes de que neovim use la config nueva por primera vez (si no, su
+# shada recién creado ya no se sobrescribe)
+copiar_estado() {
+    local d
+    link_is_ours "$INIT_SRC" "$VIEJO_CONF/init.lua" || return 0
+    for d in undo shada; do
+        [ -d "$VIEJO_ESTADO/$d" ] || continue
+        mkdir -p "$NVIM_STATE"
+        if cp -an "$VIEJO_ESTADO/$d" "$NVIM_STATE/"; then
+            info "copiado ${VIEJO_ESTADO/#$HOME/\~}/$d a ${NVIM_STATE/#$HOME/\~}"
+        else
+            info "AVISO: no se pudo copiar ${VIEJO_ESTADO/#$HOME/\~}/$d"
         fi
     done
 }
 
 # Plugins y servidores LSP, y comprobar que todo carga. Con la config del repo
-# (-u): si algo falla, ~/.config/nvim no se ha tocado todavía.
+# (-u): si algo falla, no se ha enlazado nada todavía.
 setup_nvim() {
     local nvim="$NVIM_DIR/bin/nvim" out
     info "plugins de neovim (la primera vez tarda un poco)"
@@ -174,50 +194,91 @@ setup_nvim() {
     fi
 }
 
-link_nvim() {
-    local f backup
-    # Con init.lua e init.vim a la vez neovim no sabe cuál usar: el que no es nuestro, a backup
-    for f in "$NVIM_CONF/init.vim" "$NVIM_CONF/init.lua"; do
-        link_is_ours "$INIT_SRC" "$f" && continue
-        if [ -e "$f" ] || [ -L "$f" ]; then
-            backup="$f.bak.$(date +%Y%m%d-%H%M%S)"
-            mv "$f" "$backup"
-            info "config anterior de neovim guardada en $backup"
+# Lo que dejó en $HOME la versión anterior, cada cosa solo si es de este repo.
+# Se hace al final: si algo de arriba falla, lo anterior sigue funcionando.
+MIGRADO=0
+migrar() {
+    local t d
+    unlink_old "$REPO_DIR/vim/vimrc" "$HOME/.vimrc" || true
+    if unlink_old "$INIT_SRC" "$VIEJO_CONF/init.lua"; then
+        # init.vim también lo apartaba la versión anterior (chocaba con init.lua)
+        restore_backup "$VIEJO_CONF/init.vim" nvim/init.vim
+        # lo propio de esta máquina pasa a la config nueva
+        if [ -e "$VIEJO_CONF/local.lua" ] && [ -e "$NVIM_CONF/local.lua" ]; then
+            info "AVISO: hay dos local.lua; vale ${NVIM_CONF/#$HOME/\~}/local.lua y ${VIEJO_CONF/#$HOME/\~}/local.lua ya no se lee: júntalos a mano"
+        elif [ -e "$VIEJO_CONF/local.lua" ]; then
+            mkdir -p "$NVIM_CONF"
+            mv "$VIEJO_CONF/local.lua" "$NVIM_CONF/local.lua"
+            info "tu local.lua pasa a ${NVIM_CONF/#$HOME/\~}/local.lua"
+        fi
+        rmdir_vacio "$VIEJO_CONF"
+    fi
+
+    # El neovim de antes: solo el que enlazaba ~/.local/bin/nvim (se mira antes
+    # de quitar el enlace). Otros ~/.local/opt/nvim-* no se tocan.
+    t="$(readlink "$VIEJO_LINK" 2>/dev/null || true)"
+    if [[ "$t" == "$HOME"/.local/opt/nvim-v*/bin/nvim ]]; then
+        rm "$VIEJO_LINK"
+        info "quitado el enlace antiguo ~/.local/bin/nvim (fuera de tmux ya no está en el PATH)"
+        d="${t%/bin/nvim}"
+        if [ -d "$d" ]; then
+            rm -rf "$d"
+            info "neovim anterior quitado: ${d/#$HOME/\~}"
+        fi
+        rmdir_vacio "$(dirname "$VIEJO_LINK")"
+        MIGRADO=1
+    fi
+
+    # Sus plugins y servidores LSP: no se reaprovechan (mason guarda rutas absolutas)
+    for d in "$VIEJO_DATOS/tmux-config" "$VIEJO_ESTADO/tmux-config-lazy-lock.json"; do
+        if [ -e "$d" ]; then
+            rm -rf "$d"
+            info "quitado ${d/#$HOME/\~} (plugins de la versión anterior)"
         fi
     done
-    link_with_backup "$INIT_SRC" "$NVIM_CONF/init.lua"
+    rmdir_vacio "$VIEJO_DATOS"
+
+    # El paquete vim que instalaba la versión anterior cambia vi fuera de tmux.
+    # No se desinstala solo: puede que ya lo uses.
+    if grep -qxE 'vim|vim-enhanced' < <(state_list vim); then
+        if pkg_installed vim; then
+            info "AVISO: la versión anterior instaló el paquete vim, que cambia el vi de fuera de tmux (vim.basic en vez de vim.tiny)."
+            info "       Para dejarlo como estaba: sudo apt-get purge --autoremove vim (también lo quita ./uninstall vim)"
+        elif pkg_installed vim-enhanced; then
+            info "AVISO: la versión anterior instaló vim-enhanced, que cambia vi y view fuera de tmux (abren vim en vez de vim-minimal)."
+            info "       Para dejarlo como estaba: sudo dnf remove vim-enhanced (también lo quita ./uninstall vim)"
+        fi
+    fi
 }
 
 # EDITOR lo pone zsh/.zshrc: aquí solo se comprueba que va a llegar
 editor_nvim() {
     local ed
-    if link_is_ours "$REPO_DIR/zsh/.zshrc" "$HOME/.zshrc"; then
-        info "neovim es el editor por defecto en los panes nuevos de tmux (git commit, crontab -e, sudoedit...)"
+    if link_is_ours "$REPO_DIR/zsh/.zshrc" "$TC_DIR/zsh/.zshrc"; then
+        info "neovim es el editor por defecto en los panes nuevos de tmux (git commit, crontab -e, sudoedit...); vi y vim también lo abren"
     else
-        info "AVISO: ~/.zshrc no es de este repo: neovim no será el editor por defecto (./install zsh)"
+        info "AVISO: sin ./install zsh, dentro de tmux ni nvim, ni vi, ni EDITOR llegan a este neovim"
     fi
-    # git usa su core.editor antes que EDITOR
+    [ "$MIGRADO" -eq 0 ] ||
+        info "AVISO: en los panes de tmux ya abiertos EDITOR apunta al neovim anterior (~/.local/bin/nvim, ya quitado): abre uno nuevo"
+    # git usa su core.editor antes que EDITOR; vi o vim, dentro de tmux, son este neovim
     ed="$(git config --global --get core.editor 2>/dev/null || true)"
-    [ -z "$ed" ] || info "AVISO: git seguirá abriendo su core.editor ($ed). Para usar neovim: git config --global --unset core.editor"
+    case "$ed" in
+        ""|vi|vim|nvim) ;;
+        *) info "AVISO: git seguirá abriendo su core.editor ($ed). Para usar neovim: git config --global --unset core.editor" ;;
+    esac
 }
 
 install_paquetes
-command -v vim >/dev/null || die "vim no está instalado"
-info "$(vim --version | head -n 1) instalado"
-check_vim
-link_with_backup "$VIMRC_SRC" "$VIMRC_DST"
-
 install_nvim
 if [ "$NVIM_OK" -eq 1 ]; then
+    copiar_estado
     setup_nvim
-    link_nvim
-    editor_nvim
-    case ":$PATH:" in
-        *":$HOME/.local/bin:"*) ;;
-        *) info "AVISO: ~/.local/bin no está en el PATH: abre una sesión SSH nueva (o usa $NVIM_LINK)" ;;
-    esac
+    link_with_backup "$INIT_SRC" "$NVIM_CONF/init.lua"
 fi
+migrar
+[ "$NVIM_OK" -eq 0 ] || editor_nvim
 
-info "aprender: vimtutor es (vim, en español) · :Tutor (neovim) · Espacio ? (mapa de atajos)"
+info "aprender: :Tutor dentro de neovim · Espacio ? (mapa de atajos)"
 info "ficheros del sistema, en tmux: sudoedit /etc/fichero (neovim con tu config, sin abrirlo como root)"
 info "listo"

@@ -1,6 +1,5 @@
 -- Atajos generales. Los de cada plugin están en tc/plugins.lua, junto al plugin.
--- Mismo mapa que vim/vimrc (Espacio e, Ctrl+P, Espacio g...): lo aprendido vale
--- en los dos. Cada atajo lleva descripción: es lo que enseña el menú de Espacio.
+-- Cada atajo lleva descripción: es lo que enseña el menú de Espacio.
 
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '

@@ -5,8 +5,9 @@
 #
 # Qué hace (enseña la lista y pide confirmación antes):
 #   1. Cierra los servidores tmux de este usuario, con todas sus sesiones.
-#   2. Quita ~/.tmux.conf y ~/.local/bin/tmux-guia si son enlaces a este repo
-#      (si son otra cosa, no los toca).
+#   2. Quita ~/.tmux.conf y ~/.local/opt/tmux-config/bin/tmux-guia si son
+#      enlaces a este repo (si son otra cosa, no los toca), y ~/.local/bin/tmux-guia
+#      si lo es (lo enlazaba la versión anterior).
 #   3. Desinstala el paquete tmux. apt/dnf enseña qué más se quita y vuelve a
 #      pedir confirmación.
 # No borra los backups ~/.tmux.conf.bak.* que dejó tmux/install.sh.
@@ -16,7 +17,9 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF_SRC="$REPO_DIR/.tmux.conf"
 CONF_DST="$HOME/.tmux.conf"
 GUIA_SRC="$REPO_DIR/bin/tmux-guia"
-GUIA_DST="$HOME/.local/bin/tmux-guia"
+TC_DIR="$HOME/.local/opt/tmux-config"     # el mismo que lib/comun.sh
+GUIA_DST="$TC_DIR/bin/tmux-guia"
+GUIA_VIEJO="$HOME/.local/bin/tmux-guia"   # donde la enlazaba la versión anterior
 
 info() { printf '==> %s\n' "$*"; }
 die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -42,6 +45,7 @@ pkg_installed() {
 
 conf_is_ours() { [ -L "$CONF_DST" ] && [ "$(readlink "$CONF_DST")" = "$CONF_SRC" ]; }
 guia_is_ours() { [ -L "$GUIA_DST" ] && [ "$(readlink "$GUIA_DST")" = "$GUIA_SRC" ]; }
+guia_vieja_is_ours() { [ -L "$GUIA_VIEJO" ] && [ "$(readlink "$GUIA_VIEJO")" = "$GUIA_SRC" ]; }
 
 # Servidores tmux vivos de este usuario (los sockets muertos se ignoran)
 sockets=()
@@ -54,7 +58,7 @@ fi
 
 # --- Resumen y confirmación ---------------------------------------------------
 
-if [ ${#sockets[@]} -eq 0 ] && ! conf_is_ours && ! guia_is_ours && ! pkg_installed; then
+if [ ${#sockets[@]} -eq 0 ] && ! conf_is_ours && ! guia_is_ours && ! guia_vieja_is_ours && ! pkg_installed; then
     info "nada que desinstalar"
     exit 0
 fi
@@ -65,7 +69,8 @@ for s in "${sockets[@]}"; do
     tmux -S "$s" ls | sed 's/^/      /'
 done
 conf_is_ours && echo "  - quitar el enlace ~/.tmux.conf -> $CONF_SRC"
-guia_is_ours && echo "  - quitar el enlace ~/.local/bin/tmux-guia -> $GUIA_SRC"
+guia_is_ours && echo "  - quitar el enlace ~/.local/opt/tmux-config/bin/tmux-guia -> $GUIA_SRC"
+guia_vieja_is_ours && echo "  - quitar el enlace ~/.local/bin/tmux-guia -> $GUIA_SRC"
 pkg_installed && echo "  - desinstalar el paquete tmux"
 read -r -p "¿Continuar? [s/N] " answer
 [[ "$answer" =~ ^[sS]$ ]] || { info "cancelado, no se ha tocado nada"; exit 0; }
@@ -86,8 +91,16 @@ fi
 
 if guia_is_ours; then
     rm "$GUIA_DST"
+    info "enlace ~/.local/opt/tmux-config/bin/tmux-guia quitado"
+fi
+if guia_vieja_is_ours; then
+    rm "$GUIA_VIEJO"
     info "enlace ~/.local/bin/tmux-guia quitado"
 fi
+# los directorios que hayan quedado vacíos (los demás componentes usan los mismos)
+for d in "$TC_DIR/bin" "$TC_DIR" "$(dirname "$TC_DIR")" "$(dirname "$GUIA_VIEJO")"; do
+    [ -d "$d" ] && rmdir "$d" 2>/dev/null && info "quitado ${d/#$HOME/\~} (vacío)"
+done
 
 if pkg_installed; then
     if command -v apt-get >/dev/null; then

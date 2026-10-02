@@ -1,6 +1,6 @@
 -- Plugins, gestionados con lazy.nvim. Cada uno va fijado a un commit (la
 -- versión probada): para cambiarla, edita el commit y ejecuta ./install vim.
--- Se descargan en ~/.local/share/nvim/tmux-config/ (lo hace ./install vim).
+-- Se descargan en ~/.local/share/tmux-config-nvim/tmux-config/ (lo hace ./install vim).
 -- Sin iconos: todo se ve igual con cualquier fuente.
 
 -- netrw (el explorador de ficheros de serie) cede el sitio a nvim-tree
@@ -111,9 +111,12 @@ require('lazy').setup({
                     end
                 end,
             })
-            -- Al cerrar el último fichero, cerrar también el árbol (y salir)
+            -- Al cerrar el último fichero, cerrar también el árbol (y salir). Con
+            -- el foco en el árbol no se toca nada: cerrar la ventana actual aquí
+            -- cancelaría el :qa
             vim.api.nvim_create_autocmd('QuitPre', {
                 callback = function()
+                    if vim.bo.filetype == 'NvimTree' then return end
                     local arbol, flotantes, ventanas = {}, 0, vim.api.nvim_list_wins()
                     for _, w in ipairs(ventanas) do
                         if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == 'NvimTree' then

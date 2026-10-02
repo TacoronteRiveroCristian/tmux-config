@@ -1,0 +1,5 @@
+#!/bin/sh
+# view — el neovim de ./install vim en solo lectura, como el view de vim (nvim no
+# lo deduce del nombre con el que se le llama). ./install vim lo enlaza en
+# ~/.local/opt/tmux-config/bin: solo está en el PATH dentro de tmux.
+exec "$HOME/.local/opt/tmux-config/bin/nvim" -R "$@"

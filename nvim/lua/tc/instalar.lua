@@ -1,5 +1,5 @@
 -- Instalación sin pantalla, la que lanza ./install vim:
---   nvim --headless -u nvim/init.lua -c 'lua require("tc.instalar").lsp()'
+--   NVIM_APPNAME=tmux-config-nvim nvim --headless -u nvim/init.lua -c 'lua require("tc.instalar").lsp()'
 -- Instala los servidores LSP que falten y espera a que acaben. Sale con error
 -- (cquit) si alguno falla, para que ./install vim lo diga.
 

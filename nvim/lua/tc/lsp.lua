@@ -1,5 +1,5 @@
 -- Servidores LSP: errores en vivo, autocompletado, ir a la definición...
--- Los instala ./install vim con mason (en ~/.local/share/nvim/tmux-config/mason).
+-- Los instala ./install vim con mason (en ~/.local/share/tmux-config-nvim/tmux-config/mason).
 -- Para añadir más en una máquina: :Mason (i instala, X desinstala).
 
 local M = {}

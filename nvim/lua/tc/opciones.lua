@@ -1,4 +1,4 @@
--- Opciones generales: las mismas ideas que vim/vimrc, más lo propio de neovim.
+-- Opciones generales.
 
 local o = vim.opt
 
@@ -22,6 +22,12 @@ o.shiftwidth = 4
 o.softtabstop = 4
 o.list = true               -- ver tabuladores y espacios al final de línea
 o.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
+
+-- :terminal y :! con la shell de los panes de tmux (zsh con la config del repo,
+-- ZDOTDIR) y no con la de login. Solo si se abrió desde uno de esos panes.
+if vim.env.ZDOTDIR and vim.uv.fs_realpath(vim.env.ZDOTDIR .. '/.zshrc') == vim.g.tc_repo .. '/zsh/.zshrc' then
+    o.shell = 'zsh'
+end
 
 vim.api.nvim_create_autocmd('FileType', {
     pattern = { 'yaml', 'json', 'jsonc', 'html', 'xml', 'css', 'javascript', 'typescript', 'lua', 'ruby', 'markdown', 'terraform' },

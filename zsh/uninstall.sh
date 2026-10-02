@@ -4,7 +4,9 @@
 #   ./uninstall zsh
 #
 # Qué hace (enseña la lista y pide confirmación antes):
-#   1. Quita ~/.zshrc si es un enlace a este repo (si es otra cosa, no la toca).
+#   1. Quita ~/.local/opt/tmux-config/zsh/.zshrc si es un enlace a este repo, y
+#      ~/.zshrc si lo es (lo enlazaba la versión anterior); si es otra cosa, no
+#      la toca.
 #   2. En los tmux en marcha de este usuario, los panes nuevos vuelven a la
 #      shell de login.
 #   3. Desinstala los paquetes que instaló ./install zsh (los apuntados en
@@ -16,9 +18,9 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF_SRC="$REPO_DIR/zsh/.zshrc"
-CONF_DST="$HOME/.zshrc"
 
 . "$REPO_DIR/lib/comun.sh"
+CONF_DIR="$TC_DIR/zsh"
 
 # Usuarios con zsh como shell de login
 login_zsh() { getent passwd | awk -F: '$7 ~ /\/zsh$/ { print $1 }'; }
@@ -42,17 +44,32 @@ done < <(state_list zsh)
 
 # --- Resumen y confirmación ---------------------------------------------------
 
-conf_ours=0
-link_is_ours "$CONF_SRC" "$CONF_DST" && conf_ours=1
+# El de ahora y el ~/.zshrc de la versión anterior
+enlaces=()
+for f in "$CONF_DIR/.zshrc" "$HOME/.zshrc"; do
+    link_is_ours "$CONF_SRC" "$f" && enlaces+=("$f")
+done
+# Su directorio, si no tiene un .zshrc que no sea nuestro
+quitar_dir=0
+if [ -d "$CONF_DIR" ]; then
+    if link_is_ours "$CONF_SRC" "$CONF_DIR/.zshrc" || { [ ! -e "$CONF_DIR/.zshrc" ] && [ ! -L "$CONF_DIR/.zshrc" ]; }; then
+        quitar_dir=1
+    else
+        info "${CONF_DIR/#$HOME/\~}/.zshrc no es de este repo: no se toca"
+    fi
+fi
 
-if [ "$conf_ours" -eq 0 ] && [ ${#sockets[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ]; then
+if [ ${#enlaces[@]} -eq 0 ] && [ "$quitar_dir" -eq 0 ] && [ ${#sockets[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ]; then
     info "nada que desinstalar"
     [ ${#conservar[@]} -eq 0 ] || info "zsh se queda: es la shell de login de: $usuarios"
     exit 0
 fi
 
 echo "Se va a:"
-[ "$conf_ours" -eq 0 ] || echo "  - quitar el enlace ~/.zshrc -> $CONF_SRC"
+for f in ${enlaces[@]+"${enlaces[@]}"}; do
+    echo "  - quitar el enlace ${f/#$HOME/\~} -> $CONF_SRC"
+done
+[ "$quitar_dir" -eq 0 ] || echo "  - quitar ${CONF_DIR/#$HOME/\~} (con la caché de completado que zsh deja ahí)"
 for s in "${sockets[@]}"; do
     echo "  - en el tmux '$(basename "$s")', que los panes nuevos vuelvan a la shell de login"
 done
@@ -63,11 +80,14 @@ read -r -p "¿Continuar? [s/N] " answer
 
 # --- Desinstalar ----------------------------------------------------------------
 
-if [ "$conf_ours" -eq 1 ]; then
-    rm "$CONF_DST"
-    info "enlace ~/.zshrc quitado"
-elif [ -e "$CONF_DST" ]; then
-    info "~/.zshrc no es de este repo: no se toca"
+for f in ${enlaces[@]+"${enlaces[@]}"}; do
+    rm "$f"
+    info "enlace ${f/#$HOME/\~} quitado"
+done
+# Lo demás de ese directorio lo crea zsh por estar ahí ZDOTDIR (.zcompdump)
+if [ "$quitar_dir" -eq 1 ]; then
+    rm -f "$CONF_DIR"/.zcompdump*
+    rmdir_vacio "$CONF_DIR" "$TC_DIR" "$(dirname "$TC_DIR")"
 fi
 
 for s in "${sockets[@]}"; do

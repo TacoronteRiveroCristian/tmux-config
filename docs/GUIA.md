@@ -33,6 +33,10 @@ La terminal se ve igual que antes, con una barra verde abajo:
 Si "tmux ls" dice "no server running", no pasa nada: significa que todavía no
 hay ninguna sesión.
 
+Lo configurado solo existe aquí dentro: zsh con su config en los panes, neovim
+al escribir vi o vim (y en git commit, crontab -e, sudoedit) y tmux-guia. Fuera
+de tmux el servidor sigue exactamente como estaba.
+
 ## 3. Dos tipos de atajo
 
 Día a día: Alt + tecla, a la vez, como en Kitty con Ctrl+Shift.
@@ -139,8 +143,11 @@ La configuración no se aplica
     ¿Estás en byobu? Byobu no carga esta configuración: usa "tmux".
     Si has cambiado .tmux.conf: Ctrl+B R para recargar.
 
+Fuera de tmux no tengo mi zsh, ni neovim, ni tmux-guia
+    Es a propósito: solo existen dentro de tmux. Entra con tmux new -A -s trabajo.
+
 ## 11. Más ayuda
 
     Alt+h               esta guía, dentro de tmux
-    tmux-guia           esta guía, desde la shell
+    tmux-guia           esta guía, tecleado en un pane
     Ctrl+B ?            todos los atajos de tmux (q para salir)

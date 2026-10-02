@@ -60,7 +60,7 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     tmux new -A -s trabajo        entrar en la sesión (la crea si no existe)
     tmux ls                       listar sesiones
     tmux kill-session -t trabajo  eliminar una sesión
-    tmux-guia                     esta guía
+    tmux-guia                     esta guía (tecleado en un pane de tmux)
 
 ## En zsh (si instalaste ./install zsh)
 
@@ -72,17 +72,20 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     Tab Tab               menú de completado, flechas para elegir
     " comando"            empezar con espacio: no se guarda en el historial
 
-## En neovim y vim (si instalaste ./install vim)
+## En neovim (si instalaste ./install vim)
+
+  Dentro de tmux, vi, vim, view y vimdiff también abren este neovim. Fuera de
+  tmux, vi es el de la distro.
 
   Primeros pasos:
 
     i  ·  Esc             empezar a escribir · dejar de escribir
     Espacio w  ·  q       guardar · cerrar (:q! sale sin guardar)
     u  ·  Ctrl+R          deshacer · rehacer (también tras cerrar el fichero)
-    Espacio (y esperar)   menú con todos los atajos (neovim)
-    Espacio ?             este mapa (neovim)
-    Espacio k             buscar un atajo escribiendo lo que quieres hacer (neovim)
-    para aprender         vimtutor es (vim, en español) · :Tutor (neovim)
+    Espacio (y esperar)   menú con todos los atajos
+    Espacio ?             este mapa
+    Espacio k             buscar un atajo escribiendo lo que quieres hacer
+    para aprender         :Tutor (en inglés)
 
   Ficheros:
 
@@ -93,16 +96,14 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     Espacio b  ·  r       ficheros abiertos · recientes
     Ctrl+h  ·  Ctrl+l     pasar del árbol al fichero y al revés
     gcc  ·  gc            comentar la línea · la selección
-    Espacio y             copiar al portapapeles, también por SSH (neovim)
+    Espacio y             copiar al portapapeles, también por SSH
 
   En el árbol:
 
-    neovim                a crear · r renombrar · d borrar (y + Enter) · c copiar
-                          p pegar · x cortar · H ocultos · R refrescar · g? ayuda
-    vim                   m abre el menú (a crear · m mover · c copiar · d borrar)
-                          I ocultos · R refrescar · ? ayuda
+    a crear · r renombrar · d borrar (y + Enter) · c copiar · p pegar
+    x cortar · H ocultos · R refrescar · g? ayuda
 
-  Código (neovim, LSP de bash, Python, YAML, JSON, Dockerfile, Lua, Markdown):
+  Código (LSP de bash, Python, YAML, JSON, Dockerfile, Lua, Markdown):
 
     Tab                   aceptar el autocompletado (flechas eligen, Esc cierra)
     K  ·  gd              información · ir a la definición
@@ -110,7 +111,7 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     Espacio cd            ver el error de la línea
     Espacio ca · cr · cf  arreglos rápidos · renombrar · formatear
 
-  Git (neovim):
+  Git:
 
     ]c  ·  [c             siguiente cambio · anterior
     Espacio vp · vr · vb  ver el cambio · deshacerlo · quién cambió la línea

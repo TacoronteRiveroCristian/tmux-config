@@ -10,7 +10,9 @@
 #   1. Instala tmux si falta (o lo actualiza con --actualizar).
 #   2. Comprueba que .tmux.conf carga sin errores con esa versión de tmux.
 #   3. Enlaza ~/.tmux.conf a este repo (con backup de la config anterior).
-#   4. Enlaza el comando tmux-guia en ~/.local/bin.
+#   4. Enlaza el comando tmux-guia en ~/.local/opt/tmux-config/bin, que solo está
+#      en el PATH dentro de tmux (Alt+h la abre por su ruta en el repo). Quita
+#      ~/.local/bin/tmux-guia si lo enlazó la versión anterior.
 #   5. Aplica la config a los tmux que ya estén en marcha, sin cerrar sesiones.
 set -euo pipefail
 
@@ -18,9 +20,10 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF_SRC="$REPO_DIR/.tmux.conf"
 CONF_DST="$HOME/.tmux.conf"
 GUIA_SRC="$REPO_DIR/bin/tmux-guia"
-GUIA_DST="$HOME/.local/bin/tmux-guia"
 
 . "$REPO_DIR/lib/comun.sh"
+GUIA_DST="$TC_DIR/bin/tmux-guia"
+GUIA_VIEJO="$HOME/.local/bin/tmux-guia"   # donde la enlazaba la versión anterior
 
 case "${1:-}" in
     "")           ACTUALIZAR=0 ;;
@@ -37,8 +40,9 @@ install_tmux() {
     fi
     if command -v apt-get >/dev/null; then
         $SUDO apt-get update -qq
-        # install también actualiza si ya está instalado y hay versión nueva
-        $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tmux
+        # install también actualiza si ya está instalado y hay versión nueva.
+        # Sin recomendados: solo lo imprescindible, que no cambie nada de lo que ya había
+        $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends tmux
     elif command -v dnf >/dev/null; then
         if rpm -q tmux >/dev/null 2>&1; then
             $SUDO dnf upgrade -y -q tmux
@@ -81,16 +85,15 @@ link_guia() {
         info "tmux-guia ya apunta a este repo"
     elif [ -e "$GUIA_DST" ] || [ -L "$GUIA_DST" ]; then
         info "AVISO: $GUIA_DST ya existe y no es de este repo: no se toca"
-        return
     else
         mkdir -p "$(dirname "$GUIA_DST")"
         ln -s "$GUIA_SRC" "$GUIA_DST"
         info "tmux-guia -> $GUIA_SRC"
     fi
-    case ":$PATH:" in
-        *":$HOME/.local/bin:"*) ;;
-        *) info "AVISO: ~/.local/bin no está en el PATH: abre una sesión SSH nueva o añádelo" ;;
-    esac
+    # ~/.local/bin/tmux-guia la veía también bash, fuera de tmux
+    if unlink_old "$GUIA_SRC" "$GUIA_VIEJO"; then
+        rmdir_vacio "$(dirname "$GUIA_VIEJO")"
+    fi
 }
 
 if ! command -v tmux >/dev/null; then

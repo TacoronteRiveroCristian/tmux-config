@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # tmux-guia — abre el mapa de atajos y la guía de este repo
 # (docs/CHEATSHEET.md seguido de docs/GUIA.md).
-# ./install tmux la enlaza en ~/.local/bin. Dentro de tmux: Alt+h.
+# ./install tmux la enlaza en ~/.local/opt/tmux-config/bin (en el PATH solo dentro
+# de tmux). Alt+h la abre en una ventana flotante.
 set -euo pipefail
 
 docs="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../docs"
