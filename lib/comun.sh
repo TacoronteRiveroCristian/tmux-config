@@ -71,19 +71,30 @@ link_with_backup() {
 # Antes los enlaces iban en $HOME (~/.zshrc, ~/.vimrc, ~/.config/nvim/init.lua,
 # ~/.local/bin) y se notaban fuera de tmux. Cada install.sh quita los suyos.
 
+# es_del_repo ENLACE REL: ENLACE apunta a REL dentro de un clon de este repo,
+# aunque sea otro clon, otra ruta al mismo o un fichero que ya no está (vim/vimrc).
+# Es del repo si esa raíz tiene lib/comun.sh, o si ya no existe (clon borrado);
+# un enlace a tus propios ficheros (otra raíz que sí existe) no lo es.
+es_del_repo() {
+    local t root
+    [ -L "$1" ] || return 1
+    t="$(readlink "$1")"
+    [[ "$t" == */"$2" ]] || return 1
+    [[ "$t" == /* ]] || t="$(dirname "$1")/$t"
+    root="${t%/"$2"}"
+    [ -e "$root/lib/comun.sh" ] || [ ! -e "$root" ]
+}
+
 # restore_backup DST REL: devuelve a DST la config que había antes de enlazarlo
 # (el DST.bak.<fecha> que guardó link_with_backup). Solo si hay exactamente uno:
 # con varios los enseña y no elige. No cuentan los que son a su vez un enlace a
-# un clon de este repo (o a algo que ya no existe). Nunca borra un backup.
+# un clon de este repo (es_del_repo). Nunca borra un backup.
 restore_backup() {
-    local dst="$1" rel="$2" b t cands=()
+    local dst="$1" rel="$2" b cands=()
     if [ -e "$dst" ] || [ -L "$dst" ]; then return 0; fi
     for b in "$dst".bak.*; do
         [[ "$b" =~ \.bak\.[0-9]{8}-[0-9]{6}$ ]] || continue
-        if [ -L "$b" ] && [[ "$(readlink "$b")" == */"$rel" ]]; then
-            t="$(readlink -f "$b" || true)"
-            if [ ! -e "$t" ] || [ -e "${t%/"$rel"}/lib/comun.sh" ]; then continue; fi
-        fi
+        es_del_repo "$b" "$rel" && continue
         cands+=("$b")
     done
     case ${#cands[@]} in
@@ -95,14 +106,15 @@ restore_backup() {
     esac
 }
 
-# unlink_old SRC DST: quita DST si es un enlace a SRC (aunque SRC ya no exista)
-# y restaura el backup de lo que había antes. Falla si no había nada que quitar.
+# unlink_old SRC DST: quita DST si es un enlace a SRC en este u otro clon del
+# repo (es_del_repo) y restaura el backup de lo que había antes. Falla si no
+# había nada que quitar.
 unlink_old() {
-    local src="$1" dst="$2"
-    link_is_ours "$src" "$dst" || return 1
+    local dst="$2" rel="${1#"$REPO_DIR"/}"
+    es_del_repo "$dst" "$rel" || return 1
     rm "$dst"
     info "quitado el enlace antiguo ${dst/#$HOME/\~} (fuera de tmux ya no se ve nada del repo)"
-    restore_backup "$dst" "${src#"$REPO_DIR"/}"
+    restore_backup "$dst" "$rel"
 }
 
 # rmdir_vacio DIR...: quita los directorios que hayan quedado vacíos

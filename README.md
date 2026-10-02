@@ -11,7 +11,7 @@ el historial (ver [zsh](#zsh)), y neovim con aspecto y funciones de IDE: tema,
 
 ¿Primera vez? Lee la guía paso a paso [docs/GUIA.md](docs/GUIA.md). Una vez
 instalado, se abre con `Alt+h` dentro de tmux (o escribiendo `tmux-guia` en un
-pane).
+pane con zsh, el de `./install zsh`).
 
 ## Dentro y fuera de tmux
 
@@ -23,11 +23,13 @@ Fuera de tmux todo queda como si no se hubiera instalado nada: bash y su config
 (`~/.bashrc`, `~/.profile`, `/etc`) no se tocan, `vi` es el de la distro, en el
 PATH no aparece nada nuevo y `zsh` tecleado a mano no carga la config del repo.
 Ningún componente cambia la shell de login (nada de `chsh`). Los paquetes de
-apt/dnf (tmux, zsh, git, node...) sí son de todo el sistema: se instalan sin
-recomendados, para no cambiar nada de lo que ya había. Una excepción: en un
-Debian/Ubuntu sin python3 (imágenes mínimas), el `npm` de la distro lo necesita
-y con él llega `/etc/inputrc`, que cambia algunas teclas de bash. Los
-servidores normales ya traen python3.
+apt/dnf (tmux, zsh, git, node...) sí son de todo el sistema. Con apt se
+instalan sin recomendados, para no cambiar nada de lo que ya había. Una
+excepción: en un Debian/Ubuntu sin python3 (imágenes mínimas), el `npm` de la
+distro lo necesita y con él llega `/etc/inputrc`, que cambia algunas teclas de
+bash; los servidores normales ya traen python3. Con dnf entran también sus
+dependencias débiles, como hace siempre en Rocky (documentación y similares,
+como `perl-NDBM_File`), que no cambian nada de lo que ya había.
 
 La única puerta es `~/.tmux.conf`, un enlace al repo. Lo demás está donde solo
 lo usa lo que arranca dentro de tmux:
@@ -82,8 +84,9 @@ Si se quita un atajo de la config, sigue activo hasta reiniciar tmux
 componente quita sus enlaces viejos, devuelve a su sitio tus configs de antes
 (si hay un único backup `.bak.<fecha>`; con varios, los lista y no elige) y
 pasa `~/.config/nvim/local.lua` a `~/.config/tmux-config-nvim/`. El paquete vim
-que instalaba aquella versión no se quita solo: lo avisa con el comando para
-hacerlo. En los panes ya abiertos `EDITOR` apunta al neovim viejo: abre uno nuevo.
+que instalaba aquella versión no se quita solo, ni el bash-completion que traía
+como recomendado (cambia el Tab de bash): lo avisa con el comando para hacerlo.
+En los panes ya abiertos `EDITOR` apunta al neovim viejo: abre uno nuevo.
 
 ## Desinstalar
 
@@ -207,7 +210,8 @@ Lo que hace `./install vim` (idempotente):
 
 1. Instala con apt/dnf lo que usa neovim: `git`, `curl`, `unzip`, `ripgrep`,
    `shellcheck`, `nodejs` y `npm`. Apunta los que instala él. En Rocky/RHEL
-   ripgrep y shellcheck están en EPEL: sin EPEL avisa y sigue.
+   ripgrep y shellcheck están en EPEL: sin EPEL avisa y sigue. Con dnf, nodejs
+   y npm solo si los repos ofrecen node 18 o superior.
 2. Instala el **neovim oficial v0.12.5** en `~/.local/opt/tmux-config` (sin
    root), comprobando su sha256, y enlaza `nvim`, `vi`, `vim`, `view` y
    `vimdiff` en `~/.local/opt/tmux-config/bin`. Las distros traen de la 0.6 a
@@ -227,8 +231,10 @@ los enlaces, el neovim oficial, los plugins, los servidores y solo los paquetes
 que instaló él; tu `local.lua` y el historial de deshacer se quedan.
 
 Los servidores LSP de node (bash, Python, YAML, JSON, Dockerfile) necesitan
-node 18 o superior: Debian 12/13 y Ubuntu 24.04 sí; en Ubuntu 22.04 (node 12) y
-Rocky 9 (node 16, el de sus repos por defecto) quedan Lua y Markdown.
+node 18 o superior: Debian 12/13 y Ubuntu 24.04 sí; en Ubuntu 22.04 (node 12)
+quedan Lua y Markdown. Rocky 9 ofrece por defecto el 16: `./install vim` no lo
+instala y quedan Lua y Markdown; con `sudo dnf module enable nodejs:20 &&
+./install vim` están todos.
 
 ## Requisitos
 

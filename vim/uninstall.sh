@@ -32,11 +32,15 @@ BIN="$TC_DIR/bin"
 # Lo de la versión anterior, en $HOME
 VIEJO_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
 VIEJO_LINK="$HOME/.local/bin/nvim"
+VIEJO_NVIM="$HOME/.local/opt/nvim-v0.12.5"   # la única versión que instaló
 
 enlaces=()
 link_is_ours "$INIT_SRC" "$NVIM_CONF/init.lua" && enlaces+=("$NVIM_CONF/init.lua")
-link_is_ours "$REPO_DIR/vim/vimrc" "$HOME/.vimrc" && enlaces+=("$HOME/.vimrc")
-link_is_ours "$INIT_SRC" "$VIEJO_CONF/init.lua" && enlaces+=("$VIEJO_CONF/init.lua")
+# ~/.vimrc y ~/.config/nvim/init.lua de la versión anterior (de este u otro
+# clon): al quitarlos vuelve tu config de antes, si hay un backup
+viejos=()
+es_del_repo "$HOME/.vimrc" vim/vimrc && viejos+=("$HOME/.vimrc")
+es_del_repo "$VIEJO_CONF/init.lua" nvim/init.lua && viejos+=("$VIEJO_CONF/init.lua")
 # Los comandos: nvim al neovim de ~/.local/opt/tmux-config, vi y vim a nvim,
 # view y vimdiff al repo
 [[ "$(readlink "$BIN/nvim" 2>/dev/null || true)" == "$TC_DIR"/nvim-v*/bin/nvim ]] && enlaces+=("$BIN/nvim")
@@ -49,10 +53,9 @@ nvim_dirs=()
 for d in "$TC_DIR"/nvim-v*; do
     [ -d "$d" ] && nvim_dirs+=("$d")
 done
-t="$(readlink "$VIEJO_LINK" 2>/dev/null || true)"
-if [[ "$t" == "$HOME"/.local/opt/nvim-v*/bin/nvim ]]; then
+if link_is_ours "$VIEJO_NVIM/bin/nvim" "$VIEJO_LINK"; then
     enlaces+=("$VIEJO_LINK")
-    [ ! -d "${t%/bin/nvim}" ] || nvim_dirs+=("${t%/bin/nvim}")
+    [ ! -d "$VIEJO_NVIM" ] || nvim_dirs+=("$VIEJO_NVIM")
 fi
 
 # Plugins y servidores LSP (y la caché que regenera neovim); el de la versión
@@ -71,7 +74,7 @@ done < <(state_list vim)
 
 # --- Resumen y confirmación ---------------------------------------------------
 
-if [ ${#enlaces[@]} -eq 0 ] && [ ${#nvim_dirs[@]} -eq 0 ] && [ ${#datos[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ]; then
+if [ ${#enlaces[@]} -eq 0 ] && [ ${#viejos[@]} -eq 0 ] && [ ${#nvim_dirs[@]} -eq 0 ] && [ ${#datos[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ]; then
     info "nada que desinstalar"
     exit 0
 fi
@@ -79,6 +82,9 @@ fi
 echo "Se va a:"
 for f in ${enlaces[@]+"${enlaces[@]}"}; do
     echo "  - quitar el enlace ${f/#$HOME/\~} -> $(readlink "$f")"
+done
+for f in ${viejos[@]+"${viejos[@]}"}; do
+    echo "  - quitar el enlace ${f/#$HOME/\~} -> $(readlink "$f") y devolver tu config de antes, si hay un backup"
 done
 for d in ${nvim_dirs[@]+"${nvim_dirs[@]}"}; do
     echo "  - quitar el neovim oficial ${d/#$HOME/\~}"
@@ -96,6 +102,11 @@ for f in ${enlaces[@]+"${enlaces[@]}"}; do
     rm "$f"
     info "enlace ${f/#$HOME/\~} quitado"
 done
+# los de la versión anterior; con init.lua vuelve también el init.vim que apartaba
+unlink_old "$REPO_DIR/vim/vimrc" "$HOME/.vimrc" || true
+if unlink_old "$INIT_SRC" "$VIEJO_CONF/init.lua"; then
+    restore_backup "$VIEJO_CONF/init.vim" nvim/init.vim
+fi
 for d in ${nvim_dirs[@]+"${nvim_dirs[@]}"}; do
     rm -rf "$d"
     info "neovim oficial quitado: ${d/#$HOME/\~}"

@@ -34,8 +34,9 @@ Si "tmux ls" dice "no server running", no pasa nada: significa que todavía no
 hay ninguna sesión.
 
 Lo configurado solo existe aquí dentro: zsh con su config en los panes, neovim
-al escribir vi o vim (y en git commit, crontab -e, sudoedit) y tmux-guia. Fuera
-de tmux el servidor sigue exactamente como estaba.
+al escribir vi o vim (y en git commit, crontab -e, sudoedit) y tmux-guia (estos
+dos, en los panes con zsh). Fuera de tmux el servidor sigue exactamente como
+estaba.
 
 ## 3. Dos tipos de atajo
 
@@ -149,5 +150,5 @@ Fuera de tmux no tengo mi zsh, ni neovim, ni tmux-guia
 ## 11. Más ayuda
 
     Alt+h               esta guía, dentro de tmux
-    tmux-guia           esta guía, tecleado en un pane
+    tmux-guia           esta guía, en un pane con zsh (./install zsh)
     Ctrl+B ?            todos los atajos de tmux (q para salir)

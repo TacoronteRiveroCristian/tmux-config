@@ -44,11 +44,11 @@ done < <(state_list zsh)
 
 # --- Resumen y confirmación ---------------------------------------------------
 
-# El de ahora y el ~/.zshrc de la versión anterior
+# El de ahora y el ~/.zshrc de la versión anterior (de este u otro clon)
 enlaces=()
-for f in "$CONF_DIR/.zshrc" "$HOME/.zshrc"; do
-    link_is_ours "$CONF_SRC" "$f" && enlaces+=("$f")
-done
+link_is_ours "$CONF_SRC" "$CONF_DIR/.zshrc" && enlaces+=("$CONF_DIR/.zshrc")
+viejo=0
+es_del_repo "$HOME/.zshrc" zsh/.zshrc && viejo=1
 # Su directorio, si no tiene un .zshrc que no sea nuestro
 quitar_dir=0
 if [ -d "$CONF_DIR" ]; then
@@ -59,7 +59,7 @@ if [ -d "$CONF_DIR" ]; then
     fi
 fi
 
-if [ ${#enlaces[@]} -eq 0 ] && [ "$quitar_dir" -eq 0 ] && [ ${#sockets[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ]; then
+if [ ${#enlaces[@]} -eq 0 ] && [ "$viejo" -eq 0 ] && [ "$quitar_dir" -eq 0 ] && [ ${#sockets[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ]; then
     info "nada que desinstalar"
     [ ${#conservar[@]} -eq 0 ] || info "zsh se queda: es la shell de login de: $usuarios"
     exit 0
@@ -69,6 +69,7 @@ echo "Se va a:"
 for f in ${enlaces[@]+"${enlaces[@]}"}; do
     echo "  - quitar el enlace ${f/#$HOME/\~} -> $CONF_SRC"
 done
+[ "$viejo" -eq 0 ] || echo "  - quitar el enlace ~/.zshrc -> $(readlink "$HOME/.zshrc") y devolver tu ~/.zshrc de antes, si hay un backup"
 [ "$quitar_dir" -eq 0 ] || echo "  - quitar ${CONF_DIR/#$HOME/\~} (con la caché de completado que zsh deja ahí)"
 for s in "${sockets[@]}"; do
     echo "  - en el tmux '$(basename "$s")', que los panes nuevos vuelvan a la shell de login"
@@ -84,6 +85,7 @@ for f in ${enlaces[@]+"${enlaces[@]}"}; do
     rm "$f"
     info "enlace ${f/#$HOME/\~} quitado"
 done
+[ "$viejo" -eq 0 ] || unlink_old "$CONF_SRC" "$HOME/.zshrc"
 # Lo demás de ese directorio lo crea zsh por estar ahí ZDOTDIR (.zcompdump)
 if [ "$quitar_dir" -eq 1 ]; then
     rm -f "$CONF_DIR"/.zcompdump*

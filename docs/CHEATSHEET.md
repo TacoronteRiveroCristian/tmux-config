@@ -60,7 +60,7 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     tmux new -A -s trabajo        entrar en la sesión (la crea si no existe)
     tmux ls                       listar sesiones
     tmux kill-session -t trabajo  eliminar una sesión
-    tmux-guia                     esta guía (tecleado en un pane de tmux)
+    tmux-guia                     esta guía (en un pane de tmux con zsh)
 
 ## En zsh (si instalaste ./install zsh)
 
