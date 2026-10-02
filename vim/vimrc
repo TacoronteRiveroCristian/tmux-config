@@ -1,0 +1,183 @@
+" =============================================================================
+" vim — configuración personal (también la de un neovim antiguo, < 0.11)
+"
+" ./install vim enlaza aquí ~/.vimrc. El neovim que instala usa nvim/init.lua,
+" con los mismos atajos. Requiere vim >= 8.2 (o neovim >= 0.6).
+" Probar cambios sin instalar:  vim -u vim/vimrc
+"
+" Tecla líder: Espacio. El mapa de atajos está en docs/CHEATSHEET.md (Alt+h en
+" tmux). Lo propio de cada máquina va en ~/.vimrc.local.
+" =============================================================================
+
+set nocompatible
+
+" Los plugins (vim/pack/plugins/start) van en el repo, con versión fija: se
+" cargan desde aquí y no se descarga nada
+let s:repo_vim = fnamemodify(resolve(expand('<sfile>:p')), ':h')
+execute 'set packpath^=' . fnameescape(s:repo_vim)
+
+if !has('nvim')
+    set encoding=utf-8
+endif
+filetype plugin indent on
+syntax on
+
+" --- General -------------------------------------------------------------------
+
+set hidden                  " cambiar de fichero sin obligar a guardar el actual
+set mouse=a                 " clic, rueda y arrastrar, como en tmux
+set number                  " números de línea
+set scrolloff=5             " dejar 5 líneas de margen al hacer scroll
+set sidescrolloff=5
+set linebreak               " las líneas largas se cortan entre palabras
+set showcmd                 " enseñar la tecla a medio escribir (p. ej. el líder)
+set laststatus=2            " barra de estado siempre visible
+set wildmenu                " Tab en la línea de comandos: menú de opciones
+set wildmode=longest:full,full
+set backspace=indent,eol,start
+set splitright splitbelow   " las divisiones nuevas, a la derecha y abajo
+set autoread                " recargar si el fichero cambia fuera y no hay cambios
+set history=1000
+set belloff=all
+if !has('nvim')
+    set background=dark     " neovim lo detecta solo
+    set ttimeout ttimeoutlen=10 " Esc responde al momento (tmux también espera 10 ms)
+endif
+
+" Tabuladores y espacios al final de línea, visibles
+if &encoding ==# 'utf-8'
+    set list listchars=tab:»\ ,trail:·,nbsp:␣
+else
+    set list listchars=tab:>\ ,trail:.,nbsp:+
+endif
+
+" --- Búsqueda ------------------------------------------------------------------
+
+set incsearch hlsearch      " buscar mientras escribes y resaltar
+set ignorecase smartcase    " sin distinguir mayúsculas, salvo si escribes alguna
+
+" Buscar texto en el proyecto (Espacio g): en la raíz del repo git del fichero
+" abierto o, si no hay repo, en su carpeta; en el árbol, en la carpeta del árbol.
+" Los resultados salen en una lista: Enter abre, :cnext / :cprev saltan.
+set grepprg=grep\ -rnIHs\ --exclude-dir=.git\ $*
+function! s:Buscar(patron) abort
+    let l:dir = empty(expand('%')) || &buftype !=# '' ? getcwd() : expand('%:p:h')
+    let l:git = finddir('.git', fnameescape(l:dir) . ';')
+    if !empty(l:git)
+        let l:dir = fnamemodify(l:git, ':p:h:h')
+    endif
+    execute 'silent grep! ' . shellescape(a:patron) . ' ' . shellescape(l:dir)
+    redraw!
+    cwindow
+endfunction
+command! -nargs=1 Buscar call s:Buscar(<q-args>)
+
+" --- Sangría: 4 espacios (2 en YAML, JSON, HTML...) -----------------------------
+
+set expandtab shiftwidth=4 softtabstop=4 autoindent
+augroup repo_sangria
+    autocmd!
+    autocmd FileType yaml,json,html,xml,css,javascript,typescript,lua,ruby,markdown,terraform
+                \ setlocal shiftwidth=2 softtabstop=2
+augroup END
+
+" --- Ficheros: swap y deshacer fuera de las carpetas de trabajo ------------------
+"
+" Deshacer se conserva al cerrar el fichero. Neovim ya los guarda en
+" ~/.local/state/nvim; vim, por defecto, deja los .swp junto al fichero.
+
+set undofile
+if !has('nvim')
+    let s:estado = (empty($XDG_STATE_HOME) ? $HOME . '/.local/state' : $XDG_STATE_HOME) . '/vim'
+    for s:d in ['swap', 'undo', 'backup']
+        if !isdirectory(s:estado . '/' . s:d)
+            call mkdir(s:estado . '/' . s:d, 'p', 0700)
+        endif
+    endfor
+    let &directory = s:estado . '/swap//'
+    let &undodir   = s:estado . '/undo//'
+    let &backupdir = s:estado . '/backup//'
+endif
+
+augroup repo_ficheros
+    autocmd!
+    " Al reabrir un fichero, volver a la línea donde estabas
+    autocmd BufReadPost * if line("'\"") >= 1 && line("'\"") <= line('$') && &filetype !~# 'commit'
+                \ | execute 'normal! g`"' | endif
+    " Comprobar si el fichero cambió fuera de vim al volver a él
+    autocmd FocusGained,BufEnter,CursorHold * silent! checktime
+augroup END
+
+" --- Barra de estado --------------------------------------------------------------
+"
+"   ruta [+] [RO]                         tipo  utf-8  unix  línea:col  %
+
+set statusline=\ %<%f\ %m%r%h%w%=%y\ \ %{&fileencoding!=#''?&fileencoding:&encoding}\ \ %{&fileformat}\ \ %l:%c\ \ %P
+
+" --- Atajos (líder = Espacio) -----------------------------------------------------
+
+let mapleader = ' '
+
+" Ficheros
+nnoremap <leader>e :NERDTreeToggle<CR>
+nnoremap <leader>f :NERDTreeFind<CR>
+nnoremap <leader>p :CtrlP<CR>
+nnoremap <leader>b :CtrlPBuffer<CR>
+nnoremap <leader>r :CtrlPMRU<CR>
+nnoremap <leader>w :update<CR>
+nnoremap <leader>q :quit<CR>
+nnoremap <leader>g :Buscar<Space>
+
+" Moverse entre divisiones (árbol y fichero) con Ctrl + h j k l
+nnoremap <C-h> <C-w>h
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-l> <C-w>l
+
+" Quitar el resaltado de la última búsqueda
+nnoremap <silent> <leader>h :nohlsearch<CR>
+
+" Indentar en modo visual sin perder la selección
+vnoremap < <gv
+vnoremap > >gv
+
+" --- NERDTree: árbol de ficheros ----------------------------------------------------
+"
+" m sobre un fichero o directorio: menú para crear, mover, copiar y borrar.
+" "vim directorio" abre el árbol en ese directorio.
+
+let g:NERDTreeShowHidden = 1        " ver también los ficheros ocultos
+let g:NERDTreeMinimalUI = 1
+let g:NERDTreeAutoDeleteBuffer = 1  " al borrar o mover un fichero, cerrar su buffer
+let g:NERDTreeMouseMode = 2         " un clic abre directorios, doble clic ficheros
+let g:NERDTreeWinSize = 32
+let g:NERDTreeChDirMode = 2         " la carpeta del árbol es la de trabajo (Ctrl+P, Espacio g)
+let g:NERDTreeIgnore = ['\.swp$', '\~$', '^\.git$[[dir]]']
+
+augroup repo_nerdtree
+    autocmd!
+    " "vim carpeta": trabajar en esa carpeta (Ctrl+P y Espacio g buscan ahí)
+    autocmd VimEnter * if argc() == 1 && isdirectory(argv(0)) | execute 'cd' fnameescape(argv(0)) | endif
+    " Si solo queda el árbol abierto, salir
+    autocmd BufEnter * if winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree()
+                \ | call feedkeys(":quit\<CR>:\<BS>") | endif
+augroup END
+
+" --- CtrlP: buscar ficheros por nombre (Ctrl+P) ---------------------------------------
+"
+" Dentro: escribe trozos del nombre, Ctrl+j/k para moverte, Enter abre,
+" Ctrl+v / Ctrl+x lo abren en una división, Esc sale.
+
+let g:ctrlp_show_hidden = 1
+let g:ctrlp_working_path_mode = 'ra'   " desde la raíz del repo git, o desde aquí
+" En un repo git, sus ficheros; fuera, como mucho 20000 (que abrirlo en / no se cuelgue)
+let g:ctrlp_user_command = {
+            \ 'types': {1: ['.git', 'cd %s && git ls-files -co --exclude-standard']},
+            \ 'fallback': 'find %s -type f -not -path "*/.git/*" 2>/dev/null | head -n 20000'
+            \ }
+
+" --- Local ----------------------------------------------------------------------------
+
+if filereadable(expand('~/.vimrc.local'))
+    source ~/.vimrc.local
+endif

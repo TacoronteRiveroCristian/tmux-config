@@ -5,14 +5,16 @@ atajos al estilo Kitty: `Alt+tecla` para el día a día y `Ctrl+B` para lo
 ocasional. Está en [docs/CHEATSHEET.md](docs/CHEATSHEET.md).
 
 Opcionalmente, zsh dentro de tmux con sugerencias, colores y búsqueda difusa en
-el historial (ver [zsh](#zsh)).
+el historial (ver [zsh](#zsh)), y neovim con aspecto y funciones de IDE: tema,
+árbol de ficheros, buscador, LSP, autocompletado y git (ver
+[vim y neovim](#vim-y-neovim)).
 
 ¿Primera vez? Lee la guía paso a paso [docs/GUIA.md](docs/GUIA.md). Una vez
 instalado, se abre con `tmux-guia` desde la shell o con `Alt+h` dentro de tmux.
 
 ## Instalar / actualizar
 
-Cada componente (`tmux`, `zsh`) se instala y se quita por separado:
+Cada componente (`tmux`, `zsh`, `vim`) se instala y se quita por separado:
 
 ```bash
 git clone <este-repo> ~/GitHub/personal/tmux-config
@@ -45,6 +47,7 @@ Si se quita un atajo de la config, sigue activo hasta reiniciar tmux
 ```bash
 ./uninstall tmux
 ./uninstall zsh
+./uninstall vim
 ```
 
 `./uninstall tmux` se ejecuta **fuera de tmux**. Enseña la lista de lo que va a
@@ -112,6 +115,69 @@ En imágenes mínimas de Debian/Ubuntu (Docker, cloud minimal) no se instala
 `/usr/share/doc`, que es donde Debian deja los atajos de fzf para zsh. En ese
 caso `Ctrl+R` es el de zsh, sin fzf, y `./install zsh` lo avisa.
 
+## vim y neovim
+
+`./install vim` deja **neovim como editor de trabajo, con aspecto y funciones de
+IDE**, y vim clásico con una config base por si hace falta. Los dos comparten
+los mismos atajos (Espacio e, Ctrl+P, Espacio g...): lo aprendido vale en los
+dos. Mapa completo: `Espacio ?` dentro de neovim, o `Alt+h` en tmux.
+
+**¿Nunca has usado vim?** Abre `nvim fichero`, pulsa `i` para escribir, `Esc`
+para dejar de escribir, `Espacio w` guarda y `Espacio q` cierra. Pulsa `Espacio`
+y espera: sale un menú con todo lo que puedes hacer. Para aprender en 30
+minutos: `vimtutor es` (en español) o `:Tutor` dentro de neovim.
+
+neovim trae:
+
+| Qué | Cómo |
+|---|---|
+| Menú de atajos (which-key) | `Espacio` y esperar |
+| Árbol de ficheros (crear, renombrar, copiar, borrar) | `Espacio e`; dentro, `g?` ayuda |
+| Buscar fichero / texto en el proyecto | `Ctrl+P` / `Espacio g` |
+| LSP: errores en vivo, ir a la definición, renombrar | bash (con shellcheck), Python, YAML, JSON, Dockerfile, Lua, Markdown |
+| Autocompletado | sale solo; `Tab` acepta |
+| Git en el margen | `]c` siguiente cambio, `Espacio vp` verlo |
+| Tema tokyonight, barra de estado, guías de sangría, cierre de paréntesis | — |
+| Copiar al portapapeles de tu PC, también por SSH | `Espacio y` |
+
+- `nvim carpeta` abre el árbol en esa carpeta y trabaja en ella.
+- Deshacer se conserva al cerrar el fichero, y al reabrirlo vuelve a la línea
+  donde estabas. Al salir con cambios sin guardar, pregunta en vez de dar error.
+- Sin iconos: se ve igual con cualquier fuente.
+- Para ficheros del sistema: `EDITOR=nvim sudoedit /etc/fichero`. Edita una
+  copia con tu config y la guarda con sudo, sin abrir el editor como root. Sin
+  `EDITOR`, sudoedit abre nano (Debian/Ubuntu) o vi (Rocky).
+- Lo propio de cada máquina: `~/.config/nvim/local.lua` (neovim) y
+  `~/.vimrc.local` (vim). Más servidores LSP en una máquina: `:Mason`.
+
+Lo que hace `./install vim` (idempotente):
+
+1. Instala con apt/dnf `vim` y lo que usa neovim: `git`, `curl`, `unzip`,
+   `ripgrep`, `shellcheck`, `nodejs` y `npm`. Apunta los que instala él. En
+   Rocky/RHEL ripgrep y shellcheck están en EPEL: sin EPEL avisa y sigue.
+2. vim: comprueba que `vim/vimrc` carga sin errores y enlaza `~/.vimrc`.
+3. Instala el **neovim oficial v0.12.5** en `~/.local/opt` (sin root), comprobando
+   su sha256, y lo enlaza en `~/.local/bin/nvim`. Las distros traen de la 0.6 a
+   la 0.10, demasiado antiguas para estos plugins. Hay build para x86_64 y arm64.
+4. Descarga los plugins (cada uno fijado a un commit, en `nvim/lua/tc/plugins.lua`)
+   y los servidores LSP en `~/.local/share/nvim/tmux-config`, comprueba que todo
+   carga en su versión y enlaza `~/.config/nvim/init.lua` (con backup de la
+   config anterior).
+
+La primera vez descarga unos cientos de MB (node, plugins, servidores LSP) y
+tarda varios minutos; las siguientes no descarga nada. `./uninstall vim` quita
+los enlaces, el neovim oficial, los plugins, los servidores y solo los paquetes
+que instaló él.
+
+Los servidores LSP de node (bash, Python, YAML, JSON, Dockerfile) necesitan
+node 18 o superior: Debian 12/13 y Ubuntu 24.04 sí; en Ubuntu 22.04 (node 12)
+quedan Lua y Markdown.
+
+vim usa `vim/vimrc` con tres plugins que van dentro del repo, con versión fija
+(`vim/pack/`, listados en `vim/plugins.txt`; para cambiarlos,
+`vim/actualizar-plugins.sh`): NERDTree (árbol, menú con `m`), CtrlP (`Ctrl+P`)
+y vim-commentary (`gcc`). Un neovim antiguo de la distro también usa esa config.
+
 ## Requisitos
 
 tmux **3.2 o superior**: Ubuntu 22.04+, Debian 12+, RHEL/Rocky 9+.
@@ -119,6 +185,10 @@ tmux **3.2 o superior**: Ubuntu 22.04+, Debian 12+, RHEL/Rocky 9+.
 Probado en contenedores limpios con Ubuntu 24.04 (3.4), Ubuntu 22.04 (3.2a),
 Debian 12 (3.3a) y Rocky 9 (3.2a). En Ubuntu 20.04 (3.0a) y Debian 11 (3.1c) la
 config no carga: `./install tmux` lo detecta y no enlaza nada.
+
+neovim: el oficial v0.12.5, que instala `./install vim` (x86_64 o arm64). vim
+**8.2 o superior** (probada la config base con vim 8.2, 9.0 y 9.1, y con los
+neovim de las distros, 0.6 a 0.10).
 
 zsh **5.8 o superior** (5.8.1 en Ubuntu 22.04, 5.9 en Ubuntu 24.04 y Debian 12,
 5.8 en Rocky 9). Probado en los mismos contenedores, también con Rocky sin EPEL
@@ -129,6 +199,8 @@ y con imágenes mínimas.
 ```bash
 tmux -L prueba -f "$PWD/.tmux.conf" new -s prueba
 ZDOTDIR="$PWD/zsh" zsh
+nvim -u nvim/init.lua
+vim -u vim/vimrc
 ```
 
 ## Archivos
@@ -140,6 +212,10 @@ ZDOTDIR="$PWD/zsh" zsh
 | `docs/GUIA.md` | Guía de uso paso a paso |
 | `bin/tmux-guia` | Abre el mapa y la guía en la terminal |
 | `zsh/.zshrc` | La configuración de zsh, comentada |
+| `nvim/init.lua`, `nvim/lua/tc/` | La configuración de neovim: opciones, atajos, plugins, LSP |
+| `vim/vimrc` | La configuración de vim (y de un neovim antiguo), comentada |
+| `vim/pack/`, `vim/plugins.txt` | Los plugins de vim, con su versión |
+| `vim/actualizar-plugins.sh` | Vuelve a copiar los plugins de `vim/plugins.txt` |
 | `install`, `uninstall` | Instalar / quitar componentes (`uninstall` es un enlace a `install`) |
-| `tmux/`, `zsh/` | `install.sh` y `uninstall.sh` de cada componente |
+| `tmux/`, `zsh/`, `vim/` | `install.sh` y `uninstall.sh` de cada componente |
 | `lib/comun.sh` | Funciones compartidas por los scripts de los componentes |
