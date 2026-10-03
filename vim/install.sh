@@ -62,12 +62,14 @@ case "${1:-}" in
 esac
 
 case "$(pkg_manager)" in
-    apt) PAQUETES=(git unzip ripgrep shellcheck nodejs npm) ;;
-    dnf) PAQUETES=(git unzip ripgrep ShellCheck nodejs npm) ;;
+    apt) PAQUETES=(git unzip ripgrep shellcheck nodejs) ;;
+    dnf) PAQUETES=(git unzip ripgrep ShellCheck nodejs) ;;
     *)   die "gestor de paquetes no soportado (apt o dnf)" ;;
 esac
 # curl solo si falta el comando: en Rocky viene curl-minimal, que choca con el paquete curl
 command -v curl >/dev/null || PAQUETES+=(curl)
+# npm igual: el nodejs de NodeSource lo trae dentro y choca con el paquete npm de la distro
+command -v npm >/dev/null || PAQUETES+=(npm)
 
 install_paquetes() {
     local faltan=() instalar=() sin_repo=() ya=() nuevos=() filtrados=() p node_v
