@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# actualizar — trae los cambios del repo y vuelve a aplicar lo que tengas instalado.
+#
+#   ./actualizar                git pull + ./install de los componentes instalados
+#   ./actualizar --actualizar   además, actualizar sus paquetes
+#
+# ./install se puede repetir: lo que ya está lo salta. Así no hace falta saber qué
+# cambió (config, paquetes, rutas, versión de neovim): tras cada pull, todo.
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+. "$REPO_DIR/lib/comun.sh"
+
+flags=()
+for a in "$@"; do
+    case "$a" in
+        --actualizar) flags+=("$a") ;;
+        -h|--help)    sed -n '2,8s/^# \{0,1\}//p' "$REPO_DIR/actualizar"; exit 0 ;;
+        *)            die "uso: ./actualizar [--actualizar]" ;;
+    esac
+done
+
+# El pull puede cambiar este mismo script: tras él se relanza, para que siga la
+# versión nueva y no la que bash ya tenía a medio leer
+if [ -z "${TC_TRAS_PULL:-}" ]; then
+    info "git pull"
+    git -C "$REPO_DIR" pull --ff-only || die "git pull no ha podido (mira git status): no se ha instalado nada"
+    TC_TRAS_PULL=1 exec "$REPO_DIR/actualizar" "$@"
+fi
+
+# Instalado = su enlace apunta a un clon de este repo. También los enlaces de la
+# versión anterior (~/.zshrc, ~/.config/nvim, ~/.vimrc): así se migra
+instalado() {
+    local conf="${XDG_CONFIG_HOME:-$HOME/.config}"
+    case "$1" in
+        tmux) es_del_repo "$HOME/.tmux.conf" .tmux.conf ;;
+        zsh)  es_del_repo "$TC_DIR/zsh/.zshrc" zsh/.zshrc || es_del_repo "$HOME/.zshrc" zsh/.zshrc ;;
+        vim)  es_del_repo "$conf/tmux-config-nvim/init.lua" nvim/init.lua \
+                  || es_del_repo "$conf/nvim/init.lua" nvim/init.lua || es_del_repo "$HOME/.vimrc" vim/vimrc ;;
+    esac
+}
+
+# En este orden: vim mira si zsh está instalado para avisar del editor
+comps=()
+for c in tmux zsh vim; do instalado "$c" && comps+=("$c"); done
+[ ${#comps[@]} -gt 0 ] || { info "no hay nada instalado de este repo (./install para ver los componentes)"; exit 0; }
+
+info "instalados: ${comps[*]}"
+exec "$REPO_DIR/install" "${comps[@]}" ${flags[@]+"${flags[@]}"}

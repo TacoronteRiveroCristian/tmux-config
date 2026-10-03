@@ -74,13 +74,19 @@ cd ~/GitHub/personal/tmux-config
    (lo mismo que `Ctrl+B R`). Los que se lanzaron con otra config (`-f`) no
    los toca.
 
-Para traer cambios: `git pull && ./install tmux zsh` (los que tengas), y se
-aplican solos a los tmux abiertos. Dentro de tmux, `Ctrl+B R` recarga la config.
-Si se quita un atajo de la config, sigue activo hasta reiniciar tmux
-(`tmux kill-server`, que sí cierra las sesiones).
+Para traer cambios: `./actualizar`. Hace `git pull` y vuelve a ejecutar
+`./install` de los componentes que tengas (los reconoce por sus enlaces), así que
+no hace falta saber qué cambió: instala lo que falte (paquetes, otra versión de
+neovim, enlaces que cambian de sitio) y salta lo que ya está. Con
+`./actualizar --actualizar` también actualiza los paquetes. Si hay cambios
+locales que chocan con el pull, no instala nada. La config se aplica sola a los
+tmux abiertos; dentro de tmux, `Ctrl+B R` la recarga. Si se quita un atajo de la
+config, sigue activo hasta reiniciar tmux (`tmux kill-server`, que sí cierra las
+sesiones). zsh y neovim leen la suya al arrancar: abre un pane nuevo.
 
 **Desde la versión anterior** (la que enlazaba `~/.zshrc`, `~/.vimrc`,
-`~/.config/nvim` y `~/.local/bin`): `git pull && ./install tmux zsh vim`. Cada
+`~/.config/nvim` y `~/.local/bin`): `git pull && ./actualizar` (el pull trae
+`./actualizar`, que aún no existía). Cada
 componente quita sus enlaces viejos, devuelve a su sitio tus configs de antes
 (si hay un único backup `.bak.<fecha>`; con varios, los lista y no elige) y
 pasa `~/.config/nvim/local.lua` a `~/.config/tmux-config-nvim/`. El paquete vim

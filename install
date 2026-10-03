@@ -7,7 +7,7 @@
 #   ./install                       lista los componentes
 #
 # Cada componente es un directorio con install.sh y uninstall.sh. Se pueden
-# ejecutar tantas veces como se quiera: git pull && ./install tmux zsh
+# ejecutar tantas veces como se quiera. Para traer cambios: ./actualizar
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
