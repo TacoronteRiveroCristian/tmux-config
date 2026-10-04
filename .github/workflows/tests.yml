@@ -1,0 +1,29 @@
+# Las pruebas de tests/run en cada push y pull request: x86 en un runner normal y
+# las Raspberry en uno arm64 nativo (sin emular).
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  x86:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0              # los commits viejos son el "desde" de las actualizaciones
+          persist-credentials: false
+      - run: tests/run ubuntu-server ubuntu-2204 migracion actualizar
+
+  raspberry:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: tests/run pi-trixie pi-bookworm

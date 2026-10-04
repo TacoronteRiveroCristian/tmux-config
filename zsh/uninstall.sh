@@ -13,7 +13,8 @@
 #      ~/.local/state/tmux-config/zsh.paquetes); los que ya estaban, no.
 #      zsh se queda si es la shell de login de algún usuario: sin ella no
 #      podría entrar. apt/dnf enseña qué más se quita y vuelve a confirmar.
-# No borra ~/.zsh_history ni los backups ~/.zshrc.bak.*.
+#      Si quita tealdeer, también las páginas de tldr que descargó (~/.cache/tealdeer).
+# No borra ~/.zsh_history, las carpetas que aprendió zoxide ni los backups ~/.zshrc.bak.*.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -21,6 +22,7 @@ CONF_SRC="$REPO_DIR/zsh/.zshrc"
 
 . "$REPO_DIR/lib/comun.sh"
 CONF_DIR="$TC_DIR/zsh"
+TLDR_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/tealdeer"
 
 # Usuarios con zsh como shell de login
 login_zsh() { getent passwd | awk -F: '$7 ~ /\/zsh$/ { print $1 }'; }
@@ -75,6 +77,7 @@ for s in "${sockets[@]}"; do
     echo "  - en el tmux '$(basename "$s")', que los panes nuevos vuelvan a la shell de login"
 done
 [ ${#quitar[@]} -eq 0 ] || echo "  - desinstalar los paquetes que instaló ./install zsh: ${quitar[*]}"
+[[ " ${quitar[*]-} " != *" tealdeer "* ]] || echo "  - borrar las páginas de tldr (${TLDR_CACHE/#$HOME/\~})"
 [ ${#conservar[@]} -eq 0 ] || echo "  (zsh se queda: es la shell de login de: $usuarios)"
 read -r -p "¿Continuar? [s/N] " answer
 [[ "$answer" =~ ^[sS]$ ]] || { info "cancelado, no se ha tocado nada"; exit 0; }
@@ -105,6 +108,10 @@ if [ ${#quitar[@]} -gt 0 ]; then
         *)   die "gestor de paquetes no soportado (apt o dnf): desinstala ${quitar[*]} a mano" ;;
     esac
     info "paquetes desinstalados: ${quitar[*]}"
+    if [[ " ${quitar[*]} " == *" tealdeer "* ]] && [ -d "$TLDR_CACHE" ]; then
+        rm -rf "$TLDR_CACHE"
+        info "páginas de tldr borradas"
+    fi
 fi
 
 # Lo que sigue instalado (zsh conservado) se queda apuntado para la próxima vez

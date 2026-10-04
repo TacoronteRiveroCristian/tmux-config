@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# tests/run — prueba el repo, con los cambios sin commit, en contenedores Docker que
+# imitan las máquinas donde se usa, con el clon en ~/GitHub/personal/tmux-config.
+#
+#   tests/run                  todos los perfiles, en paralelo
+#   tests/run pi-trixie ...    solo esos
+#   tests/run -l               lista los perfiles
+#
+# Perfiles:
+#   pi-trixie      Raspberry Pi OS trixie arm64 (repo de Raspberry Pi, nodejs de
+#                  NodeSource, gh con la clave caducada, vim de la distro). Instala
+#                  lo publicado y actualiza con "git pull && ./actualizar"
+#   pi-bookworm    Raspberry Pi OS bookworm arm64, instalación nueva
+#   ubuntu-server  Ubuntu 24.04 con tmux, vim y bash-completion de serie
+#   ubuntu-2204    Ubuntu 22.04 (nodejs 12, sin tealdeer)
+#   migracion      Debian trixie con la versión que enlazaba ~/.zshrc y
+#                  ~/.config/nvim (427d133), y "git pull && ./actualizar"
+#   actualizar     ./actualizar con cambios de verdad en upstream (Debian trixie)
+#
+# Necesita Docker y red (apt, NodeSource, neovim, servidores LSP). Las Raspberry
+# van nativas en arm64; en x86, emuladas si está QEMU (si no, se saltan):
+#   docker run --privileged --rm tonistiigi/binfmt --install arm64
+# Cada perfil deja su log en tests/logs/<perfil>.log. Termina con error si falla
+# alguno.
+set -euo pipefail
+
+TESTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(dirname "$TESTS")"
+LOGS="$TESTS/logs"
+
+# perfil  imagen  plataforma  desde (commit instalado antes de actualizar; - = nada)
+perfiles() {
+    cat <<'P'
+pi-trixie      debian:trixie                     linux/arm64  publicado
+pi-bookworm    dtcooper/raspberrypi-os:bookworm  linux/arm64  -
+ubuntu-server  ubuntu:24.04                      linux/amd64  -
+ubuntu-2204    ubuntu:22.04                      linux/amd64  -
+migracion      debian:trixie                     linux/amd64  427d133
+actualizar     debian:trixie                     linux/amd64  -
+P
+}
+
+# Lo publicado: origin/main si lo probado es otra cosa; si es justo eso (la CI
+# tras un push), el commit anterior
+publicado() {
+    local o h
+    o="$(git -C "$REPO_DIR" rev-parse -q --verify origin/main || true)"
+    h="$(git -C "$REPO_DIR" rev-parse HEAD)"
+    if [ -n "$o" ] && { [ "$o" != "$h" ] || [ -n "$(git -C "$REPO_DIR" status --porcelain)" ]; }; then
+        echo "$o"
+    else
+        git -C "$REPO_DIR" rev-parse -q --verify HEAD~1 || { echo "ERROR: no hay un commit anterior del que actualizar" >&2; exit 1; }
+    fi
+}
+
+command -v docker >/dev/null || { echo "ERROR: hace falta docker" >&2; exit 1; }
+[ "${1:-}" = -l ] && { perfiles; exit 0; }
+sel=("$@")
+[ ${#sel[@]} -gt 0 ] || mapfile -t sel < <(perfiles | awk '{print $1}')
+for p in "${sel[@]}"; do
+    perfiles | awk -v p="$p" '$1 == p {f = 1} END {exit !f}' || { echo "ERROR: perfil desconocido: $p (tests/run -l)" >&2; exit 2; }
+done
+
+# Imágenes, de una en una antes de lanzar nada, y por su ID: debian:trixie se
+# usa en dos plataformas y la etiqueta apunta a la última descargada. Las arm64
+# primero, para que acabe en la de x86.
+declare -A img plat desde id
+orden=()
+while read -r p i pl d; do
+    [[ " ${sel[*]} " == *" $p "* ]] || continue
+    img[$p]=$i plat[$p]=$pl desde[$p]=$d
+    if [ "$d" = publicado ]; then desde[$p]="$(publicado)" || exit 1; fi
+    [ "$d" = - ] && desde[$p]=""
+    orden+=("$p")
+done < <(perfiles | sort -r -k3,3)
+
+mkdir -p "$LOGS"
+saltados=()
+for p in "${orden[@]}"; do
+    echo "==> imagen de $p: ${img[$p]} (${plat[$p]})"
+    docker pull -q --platform "${plat[$p]}" "${img[$p]}" >/dev/null
+    id[$p]="$(docker image inspect --format '{{.Id}}' "${img[$p]}")"
+    if ! docker run --rm --platform "${plat[$p]}" "${id[$p]}" true >/dev/null 2>&1; then
+        echo "    SALTADO: este Docker no ejecuta ${plat[$p]} (para emularlo: docker run --privileged --rm tonistiigi/binfmt --install arm64)"
+        saltados+=("$p")
+    fi
+done
+
+declare -A pid
+t0=$(date +%s)
+for p in "${orden[@]}"; do
+    [[ " ${saltados[*]-} " == *" $p "* ]] && continue
+    script=entorno.sh; [ "$p" = actualizar ] && script=actualizar.sh
+    echo "==> $p${desde[$p]:+ (desde ${desde[$p]:0:7})}: tests/logs/$p.log"
+    docker run --rm --platform "${plat[$p]}" -e PERFIL="$p" -e DESDE="${desde[$p]}" \
+        -v "$REPO_DIR:/repo:ro" -v "$TESTS:/tests:ro" "${id[$p]}" bash "/tests/$script" > "$LOGS/$p.log" 2>&1 &
+    pid[$p]=$!
+done
+
+echo "==> esperando (las arm64 emuladas tardan bastante más)"
+fallidos=()
+for p in "${orden[@]}"; do
+    [ -n "${pid[$p]-}" ] || continue
+    if wait "${pid[$p]}"; then
+        echo "OK    $p"
+    else
+        echo "FALLO $p (tests/logs/$p.log)"
+        grep -E '^FALLO' "$LOGS/$p.log" | sed 's/^/        /' || tail -5 "$LOGS/$p.log" | sed 's/^/        /'
+        fallidos+=("$p")
+        if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::group::log de $p"; cat "$LOGS/$p.log"; echo "::endgroup::"; fi
+    fi
+done
+echo "==> $(( ${#orden[@]} - ${#saltados[@]} - ${#fallidos[@]} )) bien, ${#fallidos[@]} mal, ${#saltados[@]} saltados ($(( ($(date +%s) - t0) / 60 )) min)"
+# Todo saltado no es un aprobado
+[ ${#fallidos[@]} -eq 0 ] && [ ${#saltados[@]} -lt ${#orden[@]} ]

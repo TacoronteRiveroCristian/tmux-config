@@ -6,9 +6,11 @@
 #   ./install zsh --actualizar  además, actualizar los paquetes a la última versión de la distro
 #
 # Qué hace:
-#   1. Instala zsh, zsh-autosuggestions, zsh-syntax-highlighting y fzf si faltan.
-#      En Rocky/RHEL los tres últimos están en EPEL: si EPEL no está activo no
-#      los instala (no añade repos por su cuenta), y zsh funciona sin ellos.
+#   1. Instala zsh, zsh-autosuggestions, zsh-syntax-highlighting, fzf, zoxide y
+#      tealdeer (el comando tldr) si faltan. Lo que no esté en los repos activos
+#      (en Rocky/RHEL vienen de EPEL; tealdeer no está en Ubuntu 22.04) se salta
+#      con un aviso: no añade repos por su cuenta, y zsh funciona sin ellos.
+#      Descarga las páginas de tldr si no están (con --actualizar, de nuevo).
 #   2. Apunta los paquetes que ha instalado él en
 #      ~/.local/state/tmux-config/zsh.paquetes: ./uninstall zsh quita esos y no
 #      los que ya estaban.
@@ -23,7 +25,9 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF_SRC="$REPO_DIR/zsh/.zshrc"
-PAQUETES=(zsh zsh-autosuggestions zsh-syntax-highlighting fzf)
+PAQUETES=(zsh zsh-autosuggestions zsh-syntax-highlighting fzf zoxide)
+# tealdeer solo si falta el comando: hay otros clientes de tldr que chocan con él
+command -v tldr >/dev/null || PAQUETES+=(tealdeer)
 
 . "$REPO_DIR/lib/comun.sh"
 CONF_DST="$TC_DIR/zsh/.zshrc"
@@ -50,9 +54,16 @@ install_paquetes() {
             $SUDO apt-get update -qq
             # install también actualiza los que ya están si hay versión nueva
             if [ "$ACTUALIZAR" -eq 1 ]; then instalar=("${PAQUETES[@]}"); else instalar=("${faltan[@]}"); fi
-            info "instalando ${instalar[*]}"
-            # sin recomendados: solo lo imprescindible, que no cambie nada de lo que ya había
-            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${instalar[@]}"
+            # lo que no está en los repos haría fallar el install entero
+            local hay=()
+            for p in "${instalar[@]}"; do
+                if pkg_installed "$p" || pkg_available "$p"; then hay+=("$p"); else sin_repo+=("$p"); fi
+            done
+            if [ ${#hay[@]} -gt 0 ]; then
+                info "instalando ${hay[*]}"
+                # sin recomendados: solo lo imprescindible, que no cambie nada de lo que ya había
+                $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${hay[@]}"
+            fi
             ;;
         dnf)
             for p in "${faltan[@]}"; do
@@ -78,10 +89,37 @@ install_paquetes() {
     [ ${#nuevos[@]} -eq 0 ] || state_add zsh "${nuevos[@]}"
 
     if [ ${#sin_repo[@]} -gt 0 ]; then
-        info "AVISO: no están en los repos activos: ${sin_repo[*]}"
-        info "       En Rocky/RHEL vienen de EPEL. Si quieres activarlo en esta máquina"
-        info "       (Rocky/Alma): sudo dnf install epel-release && ./install zsh"
+        info "AVISO: no están en los repos activos: ${sin_repo[*]} (zsh funciona sin ellos)"
+        if [ "$(pkg_manager)" = dnf ]; then
+            info "       En Rocky/RHEL vienen de EPEL. Si quieres activarlo en esta máquina"
+            info "       (Rocky/Alma): sudo dnf install epel-release && ./install zsh"
+        fi
     fi
+}
+
+# tldr no trae páginas: hay que descargarlas (en ~/.cache/tealdeer)
+tldr_paginas() {
+    command -v tldr >/dev/null || return 0
+    [ "$ACTUALIZAR" -eq 1 ] || ! tldr tar >/dev/null 2>&1 || return 0
+    if tldr --update >/dev/null 2>&1 || tldr_a_mano; then
+        info "páginas de tldr descargadas (tldr tar: ejemplos de uso de tar)"
+    else
+        info "AVISO: no se han podido descargar las páginas de tldr (¿sin red?): tldr --update"
+    fi
+}
+
+# tealdeer anterior a la 1.7 (bookworm, Ubuntu 24.04) las pide a tldr.sh, que ya
+# no las sirve: se bajan de GitHub a donde las lee. Solo inglés y español (todas
+# son cientos de miles de ficheros)
+tldr_a_mano() {
+    local dir
+    dir="$(tldr --show-paths 2>/dev/null | sed -n 's/^Pages dir: *//p')"
+    dir="${dir%/}"
+    [[ "$dir" == */tldr-pages ]] || return 1   # se borra entero: solo si es el suyo
+    rm -rf "$dir" && mkdir -p "$dir" &&
+        curl -fsSL https://github.com/tldr-pages/tldr/archive/refs/heads/main.tar.gz |
+        tar -xz -C "$dir" --strip-components=1 --wildcards '*/pages/*' '*/pages.es/*' &&
+        tldr tar >/dev/null 2>&1
 }
 
 # Carga la config en un zsh interactivo aislado (HOME y ZDOTDIR temporales):
@@ -104,6 +142,7 @@ check_conf() {
 install_paquetes
 command -v zsh >/dev/null || die "zsh no está instalado"
 info "$(zsh --version) instalado"
+tldr_paginas
 
 # Debian/Ubuntu dejan los atajos de fzf para zsh en /usr/share/doc, que las
 # imágenes mínimas (Docker, cloud minimal) no instalan. Mismas rutas que .zshrc.

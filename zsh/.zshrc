@@ -125,6 +125,10 @@ for f in /usr/share/doc/fzf/examples/key-bindings.zsh /usr/share/fzf/shell/key-b
 done
 unset f
 
+# zoxide: "z parte-del-nombre" salta a una carpeta en la que ya estuviste; "zi"
+# la elige de una lista (fzf). Aprende sola con cada cd.
+(( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
+
 # Sugerencia en gris según el historial: → o Fin la acepta entera, Ctrl+→ una
 # palabra (Alt+→ no: en tmux cambia de pane)
 [[ -r /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] &&

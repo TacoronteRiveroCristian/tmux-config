@@ -38,7 +38,9 @@ pkg_installed() {
 # ¿Lo ofrece algún repo activo? Con apt, tras apt-get update.
 pkg_available() {
     case "$(pkg_manager)" in
-        apt) apt-cache policy "$1" 2>/dev/null | grep -q 'Candidate: [^(]' ;;
+        # grep sin -q: con -q sale al encontrarlo, apt-cache recibe SIGPIPE y con
+        # pipefail (el de los install.sh) la tubería cuenta como fallo
+        apt) apt-cache policy "$1" 2>/dev/null | grep 'Candidate: [^(]' >/dev/null ;;
         dnf) dnf -q list --available "$1" >/dev/null 2>&1 ;;
         *)   return 1 ;;
     esac

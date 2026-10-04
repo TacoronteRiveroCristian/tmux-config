@@ -132,6 +132,9 @@ Qué trae:
 | `Ctrl+R` | buscar en el historial con fzf |
 | `Ctrl+T` / `Alt+c` | insertar un fichero / cambiar de directorio con fzf |
 | `Tab` | completar; repetido, menú con flechas |
+| `z texto` | ir a una carpeta en la que ya estuviste, por parte del nombre (`z tmux`) |
+| `zi` | elegir entre las carpetas aprendidas, con fzf |
+| `tldr comando` | ejemplos de uso de un comando, sin leer el manual (`tldr tar`) |
 
 - Colores mientras escribes: un comando que no existe sale en rojo.
 - El historial se comparte entre panes, y un comando que empieza por espacio
@@ -145,9 +148,11 @@ Qué trae:
 
 Lo que hace `./install zsh` (también idempotente):
 
-1. Instala `zsh`, `zsh-autosuggestions`, `zsh-syntax-highlighting` y `fzf` si
-   faltan. En Rocky/RHEL los tres últimos solo están en EPEL: si no está
-   activo, no lo activa por su cuenta; avisa y zsh funciona sin ellos.
+1. Instala `zsh`, `zsh-autosuggestions`, `zsh-syntax-highlighting`, `fzf`,
+   `zoxide` y `tealdeer` (el comando `tldr`) si faltan, y descarga las páginas
+   de `tldr`. Lo que no está en los repos activos se salta con un aviso: en
+   Rocky/RHEL casi todo viene de EPEL (no lo activa por su cuenta) y `tealdeer`
+   no está en Ubuntu 22.04. zsh funciona sin ellos.
 2. Apunta en `~/.local/state/tmux-config/zsh.paquetes` qué paquetes ha
    instalado él.
 3. Comprueba que `zsh/.zshrc` carga sin errores con esa versión de zsh.
@@ -163,7 +168,9 @@ todos los servidores. Por eso ningún componente toca la config de bash.
 `./uninstall zsh` quita el enlace (y el `~/.zshrc` enlazado de la versión
 anterior), devuelve los panes nuevos de los tmux en marcha a la shell de login y desinstala **solo los paquetes que instaló
 `./install zsh`**. Los que ya estaban, no. Y zsh no se desinstala si es la
-shell de login de algún usuario, porque entonces no podría entrar.
+shell de login de algún usuario, porque entonces no podría entrar. Si quita
+`tealdeer`, borra también sus páginas; las carpetas que aprendió zoxide se
+quedan, como el historial.
 
 En imágenes mínimas de Debian/Ubuntu (Docker, cloud minimal) no se instala
 `/usr/share/doc`, que es donde Debian deja los atajos de fzf para zsh. En ese
@@ -264,6 +271,30 @@ ZDOTDIR="$PWD/zsh" zsh
 NVIM_APPNAME=tmux-config-nvim nvim -u nvim/init.lua
 ```
 
+## Pruebas
+
+`tests/run` prueba el repo **con los cambios sin commit** en contenedores Docker
+que imitan las máquinas donde se usa, con el clon en
+`~/GitHub/personal/tmux-config`: una Raspberry Pi OS trixie arm64 como la de
+verdad (repo de Raspberry Pi, nodejs de NodeSource, la clave caducada de `gh`)
+que instala lo publicado y actualiza con `git pull && ./actualizar`, Raspberry
+Pi OS bookworm, Ubuntu Server 24.04, Ubuntu 22.04, la migración desde la versión
+que enlazaba `~/.zshrc`, y `./actualizar` con cambios de verdad en upstream.
+
+```bash
+tests/run                  # todos, en paralelo (tests/run -l: la lista)
+tests/run pi-trixie        # solo uno
+```
+
+En cada máquina comprueba que install y actualizar terminan bien, que un pane
+nuevo de tmux arranca zsh con `vim` = el neovim del repo y `z`, que fuera de tmux
+no hay nada del repo, que un `.py` sale con resaltado y pyright, que `tldr`
+funciona, que bash no se toca, y que uninstall no deja restos y respeta lo que ya
+estaba. Necesita Docker y red; en x86 las Raspberry van emuladas (`docker run
+--privileged --rm tonistiigi/binfmt --install arm64`), y si no se puede, se
+saltan. Los logs quedan en `tests/logs/`. GitHub Actions las pasa en cada push
+(`.github/workflows/tests.yml`), las Raspberry en un runner arm64 nativo.
+
 ## Archivos
 
 | Archivo | Qué es |
@@ -278,3 +309,5 @@ NVIM_APPNAME=tmux-config-nvim nvim -u nvim/init.lua
 | `install`, `uninstall` | Instalar / quitar componentes (`uninstall` es un enlace a `install`) |
 | `tmux/`, `zsh/`, `vim/` | `install.sh` y `uninstall.sh` de cada componente (`vim` instala neovim) |
 | `lib/comun.sh` | Funciones compartidas por los scripts de los componentes |
+| `actualizar` | `git pull` y vuelve a aplicar los componentes instalados |
+| `tests/` | Las pruebas en Docker (`tests/run`) |

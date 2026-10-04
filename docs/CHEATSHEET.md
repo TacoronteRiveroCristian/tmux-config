@@ -71,6 +71,9 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     Ctrl+T / Alt+c        insertar un fichero / cambiar de directorio (fzf)
     Tab Tab               menú de completado, flechas para elegir
     " comando"            empezar con espacio: no se guarda en el historial
+    z texto               ir a una carpeta en la que ya estuviste (z tmux)
+    zi                    elegir entre las carpetas aprendidas (fzf)
+    tldr comando          ejemplos de uso de un comando (tldr tar)
 
 ## En neovim (si instalaste ./install vim)
 
