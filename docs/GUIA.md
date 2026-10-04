@@ -152,3 +152,6 @@ Fuera de tmux no tengo mi zsh, ni neovim, ni tmux-guia
     Alt+h               esta guía, dentro de tmux
     tmux-guia           esta guía, en un pane con zsh (./install zsh)
     Ctrl+B ?            todos los atajos de tmux (q para salir)
+
+Para cambiar atajos o la configuración: README.md del repo, sección
+"Personalizar".
