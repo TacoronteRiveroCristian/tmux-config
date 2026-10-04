@@ -60,8 +60,9 @@ servidores.
 
 Se puede ejecutar tantas veces como se quiera:
 
-1. Instala tmux (apt o dnf) si falta; solo entonces usa sudo. Con
-   `--actualizar`, también lo actualiza a la última versión de la distro.
+1. Instala tmux (apt o dnf) si falta; solo entonces usa sudo, y lo apunta en
+   `~/.local/state/tmux-config/tmux.paquetes`. Con `--actualizar`, también lo
+   actualiza a la última versión de la distro.
 2. Comprueba que `.tmux.conf` carga sin errores con esa versión, en un servidor
    tmux aislado que no toca las sesiones en marcha. Si no carga, no enlaza nada.
 3. Enlaza `~/.tmux.conf` a este repo. Si ya había una config, la guarda como
@@ -80,9 +81,10 @@ Se ejecuta **fuera de tmux**. Enseña la lista y pide confirmación antes de:
 1. Cerrar los servidores tmux de tu usuario, con todas sus sesiones.
 2. Quitar `~/.tmux.conf` y `tmux-guia`, solo si son enlaces a este repo
    (también el `~/.local/bin/tmux-guia` de la versión anterior).
-3. Desinstalar el paquete tmux, aunque ya estuviera antes de `./install tmux`.
-   apt/dnf vuelve a confirmar y enseña qué más se quita.
+3. Desinstalar el paquete tmux, solo si lo instaló `./install tmux`. apt/dnf
+   vuelve a confirmar y enseña qué más se quita.
 
-En Ubuntu Server, apt quita también el metapaquete `ubuntu-server`, porque
-depende de tmux. El script lo avisa. Recupéralo tras `./install tmux` con
-`sudo apt install ubuntu-server`.
+El tmux que ya estaba se queda (Ubuntu Server lo trae de serie). También el
+que instaló una versión del repo anterior a octubre de 2026, que no lo
+apuntaba: no hay forma de saber si ya estaba. Lo dice y da el comando para
+quitarlo a mano.

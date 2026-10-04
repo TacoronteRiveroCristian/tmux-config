@@ -23,8 +23,8 @@ los dos se abren con `Alt+h`.
    `tmux-guia`) y neovim como editor, con su config aparte (`NVIM_APPNAME`).
 4. Fuera de tmux no llega nada de eso: ni el PATH, ni zsh, ni neovim.
 5. `./actualizar` es `git pull` y `./install` de lo que tengas instalado.
-   `./install zsh` y `./install vim` apuntan en `~/.local/state/tmux-config/`
-   qué paquetes pusieron ellos, para que `./uninstall` quite solo esos.
+   Cada `./install` apunta en `~/.local/state/tmux-config/` qué paquetes puso
+   él, para que `./uninstall` quite solo esos.
 
 ## Estructura del proyecto
 
@@ -64,8 +64,7 @@ tmux new -A -s trabajo
   cambió. Con `--actualizar`, también los paquetes. Si hay cambios locales que
   chocan con el pull, no instala nada.
 - `./uninstall <componente>` enseña lo que va a hacer y pide confirmación.
-  `zsh` y `vim` solo quitan los paquetes que instalaron ellos; `tmux`
-  desinstala el paquete tmux aunque ya estuviera antes.
+  Solo quita los paquetes que instaló él; los que ya estaban, no.
 - Los paquetes de apt/dnf son de todo el sistema. Con apt se instalan sin
   recomendados; con dnf entran sus dependencias débiles, como siempre en Rocky.
 

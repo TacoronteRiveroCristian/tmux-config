@@ -38,9 +38,8 @@ esac
 . /etc/os-release
 echo "=== $PERFIL: $PRETTY_NAME ($(uname -m)), usuario $U${DESDE:+, desde $DESDE}"
 echo "    node $(node -v 2>/dev/null || echo -) · npm $(npm -v 2>/dev/null || echo -) · tmux previo: $(command -v tmux || echo -) · vim previo: $(command -v vim || echo -)"
-# Lo que ya estaba: uninstall no lo quita (salvo tmux, que ./uninstall tmux
-# desinstala siempre, documentado)
-antes="$(dpkg-query -W -f='${Package} ${Status}\n' vim nodejs bash-completion zoxide tealdeer 2>/dev/null | awk '/install ok installed/ {print $1}' | tr '\n' ' ')"
+# Lo que ya estaba: uninstall no lo quita
+antes="$(dpkg-query -W -f='${Package} ${Status}\n' tmux vim nodejs bash-completion zoxide tealdeer 2>/dev/null | awk '/install ok installed/ {print $1}' | tr '\n' ' ')"
 hay_tldr=0; apt-cache policy tealdeer 2>/dev/null | grep 'Candidate: [^(]' >/dev/null && hay_tldr=1
 
 upstream
@@ -118,6 +117,7 @@ paso "uninstall vim zsh tmux"
 for c in vim zsh tmux; do
     out="$(printf 's\nY\n' | as "$U" "cd $D && ./uninstall $c")"; r=$?
     check "uninstall $c" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -15
+    [ "$c" = tmux ] && out_tmux="$out"
 done
 check "sin restos en ~/.local/opt/tmux-config" bash -c "[ -z \"\$(find $H/.local/opt/tmux-config -not -type d 2>/dev/null)\" ]"
 check "sin ~/.tmux.conf ni config de neovim del repo" bash -c "[ ! -L $H/.tmux.conf ] && [ ! -e $H/.config/tmux-config-nvim/init.lua ]"
@@ -128,6 +128,15 @@ for pk in zoxide tealdeer; do
     [[ " $antes " == *" $pk "* ]] && continue
     check "quita $pk, que instaló él" bash -c "! dpkg-query -W -f='\${Status}' $pk 2>/dev/null | grep -q 'install ok installed'"
 done
+# tmux: lo quita si lo instaló ./install tmux. Si lo instaló una versión
+# anterior (DESDE), que no lo apuntaba, se queda y dice cómo quitarlo
+if [[ " $antes " != *" tmux "* ]]; then
+    if [ -z "$DESDE" ]; then
+        check "quita tmux, que instaló él" bash -c "! dpkg-query -W -f='\${Status}' tmux 2>/dev/null | grep -q 'install ok installed'"
+    elif dpkg-query -W -f='${Status}' tmux 2>/dev/null | grep 'install ok installed' >/dev/null; then
+        check "tmux de una versión anterior: se queda y dice cómo quitarlo" has "purge tmux" "$out_tmux"
+    fi
+fi
 check "sin páginas de tldr" [ ! -e "$H/.cache/tealdeer" ]
 [ "$PERFIL" = pi-trixie ] && check "conserva el npm de NodeSource" bash -c "command -v npm >/dev/null"
 check "bash sin tocar tras desinstalar" [ "$(bashfiles)" = "$b0" ]

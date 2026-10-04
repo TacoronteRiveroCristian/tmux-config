@@ -7,7 +7,9 @@
 #   git pull && ./install tmux   traer cambios del repo y aplicarlos
 #
 # Qué hace:
-#   1. Instala tmux si falta (o lo actualiza con --actualizar).
+#   1. Instala tmux si falta (o lo actualiza con --actualizar). Si lo instala él,
+#      lo apunta en ~/.local/state/tmux-config/tmux.paquetes: ./uninstall tmux
+#      solo quita ese, no el que ya estaba (Ubuntu Server lo trae).
 #   2. Comprueba que .tmux.conf carga sin errores con esa versión de tmux.
 #   3. Enlaza ~/.tmux.conf a este repo (con backup de la config anterior).
 #   4. Enlaza el comando tmux-guia en ~/.local/opt/tmux-config/bin, que solo está
@@ -99,6 +101,7 @@ link_guia() {
 if ! command -v tmux >/dev/null; then
     info "instalando tmux"
     install_tmux
+    pkg_installed tmux && state_add tmux tmux
 elif [ "$ACTUALIZAR" -eq 1 ]; then
     info "actualizando tmux"
     install_tmux
