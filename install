@@ -4,10 +4,19 @@
 #   ./install tmux                  un componente
 #   ./install tmux zsh              varios, en ese orden
 #   ./install zsh --actualizar      además, actualizar sus paquetes
+#   ./install --check tmux zsh vim  solo el plan: no toca nada ni usa sudo
+#   ./install -y tmux zsh vim       sin preguntar (sin terminal, hace falta)
 #   ./install                       lista los componentes
 #
-# Cada componente es un directorio con install.sh y uninstall.sh. Se pueden
-# ejecutar tantas veces como se quiera. Para traer cambios: ./actualizar
+# Primero enseña el plan: lo que ya está, los paquetes que instalaría (con
+# sudo), las configs tuyas que apartaría, lo que no se puede instalar y qué se
+# pierde sin ello. Si instala o aparta algo, pregunta antes [S/n]; si algo lo
+# impide (BLOQUEA), no toca nada. Al final, un resumen con lo que quedó sin
+# instalar y los avisos.
+#
+# Cada componente es un directorio con install.sh, uninstall.sh y su tabla de
+# paquetes (lib/paquetes.sh). Se pueden ejecutar tantas veces como se quiera.
+# Para traer cambios: ./actualizar
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,7 +31,7 @@ componentes() {
 
 uso() {
     local c
-    echo "uso: ./$ACCION <componente>...$([ "$ACCION" = install ] && echo ' [--actualizar]')"
+    echo "uso: ./$ACCION <componente>...$([ "$ACCION" = install ] && echo ' [--actualizar] [--check] [-y]')"
     echo
     echo "Componentes:"
     for c in $(componentes); do
@@ -31,11 +40,13 @@ uso() {
     done
 }
 
-comps=() flags=()
+comps=() flags=() CHECK=0 SI=0
 for a in "$@"; do
     case "$a" in
         -h|--help)    uso; exit 0 ;;
-        --actualizar) [ "$ACCION" = install ] || die "$ACCION no admite --actualizar"; flags+=("$a") ;;
+        --actualizar|--check|-y|--yes)
+                      [ "$ACCION" = install ] || die "$ACCION no admite $a"
+                      case "$a" in --actualizar) flags+=("$a") ;; --check) CHECK=1 ;; *) SI=1 ;; esac ;;
         -*)           uso >&2; exit 2 ;;
         *)            [ -f "$REPO_DIR/$a/$ACCION.sh" ] || die "componente desconocido: $a (./$ACCION para ver la lista)"
                       comps+=("$a") ;;
@@ -43,7 +54,83 @@ for a in "$@"; do
 done
 [ ${#comps[@]} -gt 0 ] || { uso; exit 2; }
 
+if [ "$ACCION" = uninstall ]; then
+    for c in "${comps[@]}"; do
+        [ ${#comps[@]} -eq 1 ] || info "--- $c"
+        "$REPO_DIR/$c/uninstall.sh"
+    done
+    exit 0
+fi
+
+# --- Plan -----------------------------------------------------------------------
+
+ACTUALIZAR=0; [ ${#flags[@]} -eq 0 ] || ACTUALIZAR=1
+. "$REPO_DIR/lib/paquetes.sh"
+TC_PLAN="$(mktemp)" TC_AVISOS="$(mktemp)"
+export TC_PLAN TC_AVISOS
+trap 'rm -f "$TC_PLAN" "$TC_AVISOS"' EXIT
+
+planificar "${comps[@]}"
+info "plan: $(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-}") · $(uname -m) · ${GESTOR:-sin apt ni dnf}"
+for c in "${comps[@]}"; do
+    echo "$c"
+    mostrar_paquetes "$c"
+    # lo suyo que no son paquetes (configs que aparta, descargas...): solo mira
+    "$REPO_DIR/$c/install.sh" --plan ${flags[@]+"${flags[@]}"}
+done
+
+cuenta() { grep -c "^$1"$'\t' "$TC_PLAN" || true; }
+# n_de N COSA COSAS: "1 paquete", "3 paquetes"
+n_de() { if [ "$1" -eq 1 ]; then echo "1 $2"; else echo "$1 $3"; fi; }
+
+if [ "$(cuenta bloquea)" -gt 0 ]; then
+    [ "$CHECK" -eq 0 ] || { info "--check: así no se podría instalar (lo de BLOQUEA); no se ha tocado nada"; exit 1; }
+    die "no se instala nada: antes hay que resolver lo de BLOQUEA"
+fi
+
+cambios=()
+if [ ${#PAQ_INSTALAR[@]} -gt 0 ]; then
+    t="instalar con sudo $(n_de ${#PAQ_INSTALAR[@]} paquete paquetes)"
+    [ "${APT_TOTAL:-0}" -le ${#PAQ_INSTALAR[@]} ] || t="$t ($APT_TOTAL con sus dependencias)"
+    cambios+=("$t")
+fi
+[ ${#PAQ_ACTUALIZAR[@]} -eq 0 ] || cambios+=("actualizar con sudo $(n_de ${#PAQ_ACTUALIZAR[@]} paquete paquetes)")
+n="$(cuenta backup)"
+[ "$n" -eq 0 ] || cambios+=("apartar $(n_de "$n" "config tuya" "configs tuyas") (*.bak.<fecha>)")
+haria="$(printf '%s · ' ${cambios[@]+"${cambios[@]}"})"; haria="${haria% · }"
+
+if [ "$CHECK" -eq 1 ]; then
+    [ -z "$haria" ] || info "sin --check: $haria"
+    info "--check: no se ha tocado nada"
+    exit 0
+fi
+
+if [ -z "$haria" ]; then
+    info "nada que confirmar$([ "$ACTUALIZAR" -eq 1 ] || echo ' (para actualizar también los paquetes: --actualizar)')"
+elif [ "$SI" -eq 0 ]; then
+    info "va a $haria"
+    [ -t 0 ] || die "sin terminal no se puede preguntar: repite con -y para seguir con este plan"
+    read -r -p "¿Seguir? [S/n] " r || r=n   # Ctrl+D: no
+    case "${r,,}" in
+        ""|s|si|sí|y|yes) ;;
+        *) info "cancelado: no se ha tocado nada"; exit 1 ;;
+    esac
+fi
+
+# --- Aplicar --------------------------------------------------------------------
+
+aplicar_paquetes
 for c in "${comps[@]}"; do
     [ ${#comps[@]} -eq 1 ] || info "--- $c"
-    "$REPO_DIR/$c/$ACCION.sh" ${flags[@]+"${flags[@]}"}
+    "$REPO_DIR/$c/install.sh" ${flags[@]+"${flags[@]}"}
 done
+
+# Lo que quedó sin instalar y los avisos, del plan y de la instalación
+res="$(cat "$TC_PLAN" "$TC_AVISOS" | awk -F'\t' '
+    $1 == "sin" || $1 == "aviso" { p = 1; printf "  %-5s %s\n", $2, $3; next }
+    $1 == "+" && p               { printf "        %s\n", $3; next }
+                                 { p = 0 }')"
+if [ -n "$res" ]; then
+    info "resumen: lo que no se ha instalado y los avisos"
+    printf '%s\n' "$res"
+fi

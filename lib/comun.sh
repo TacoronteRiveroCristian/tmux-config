@@ -4,6 +4,56 @@
 info() { printf '==> %s\n' "$*"; }
 die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+# El componente que se está instalando (el directorio del script); ./install lo
+# cambia mientras enseña el plan de cada uno
+TC_COMP="$(basename "$(dirname "$(readlink -f "$0")")")"
+
+# aviso TEXTO [LÍNEA...]: algo que no impide seguir pero conviene leer. Sale
+# ahora y, con ./install, otra vez en el resumen del final (TC_AVISOS)
+aviso() {
+    local l
+    info "AVISO: $1"
+    for l in "${@:2}"; do info "       $l"; done
+    [ -z "${TC_AVISOS:-}" ] || apuntar "$TC_AVISOS" aviso "$@"
+}
+
+# --- Plan de ./install ----------------------------------------------------------
+#
+# plan_linea TIPO TEXTO [LÍNEA...]: una línea del plan que enseña ./install antes
+# de tocar nada; las LÍNEAs van debajo. TIPO:
+#   ya, instalar, actualizar, descargar   lo que hay y lo que hará
+#   backup    aparta una config tuya (como *.bak.<fecha>)
+#   sin       sigue sin ello · aviso: conviene leerlo (los dos, también en el resumen)
+#   bloquea   no se instala nada
+# instalar, actualizar y backup piden confirmación. Con TC_PLAN (lo pone
+# ./install) queda apuntada ahí, para el recuento y el resumen.
+plan_linea() {
+    local tipo="$1" e l; shift
+    # a mano: printf rellena por bytes, y "está" tiene uno de más
+    case "$tipo" in
+        ya)         e="ya está   " ;;
+        instalar)   e="instalar  " ;;
+        actualizar) e="actualizar" ;;
+        descargar)  e="descargar " ;;
+        backup)     e="backup    " ;;
+        sin)        e="sin       " ;;
+        aviso)      e="aviso     " ;;
+        bloquea)    e="BLOQUEA   " ;;
+        *)          die "plan_linea: tipo desconocido: $tipo" ;;
+    esac
+    printf '  %s %s\n' "$e" "$1"
+    for l in "${@:2}"; do printf '  %10s %s\n' "" "$l"; done
+    [ -z "${TC_PLAN:-}" ] || apuntar "$TC_PLAN" "$tipo" "$@"
+}
+
+# apuntar FICHERO TIPO TEXTO [LÍNEA...]: "TIPO<TAB>COMPONENTE<TAB>TEXTO", y una
+# línea "+" por cada LÍNEA de debajo
+apuntar() {
+    local f="$1" tipo="$2" l; shift 2
+    printf '%s\t%s\t%s\n' "$tipo" "$TC_COMP" "$1" >> "$f"
+    for l in "${@:2}"; do printf '+\t%s\t%s\n' "$TC_COMP" "$l" >> "$f"; done
+}
+
 # Todo lo instalado del repo vive aquí, salvo ~/.tmux.conf (la única puerta):
 # solo lo usa lo que arranca dentro de tmux. Fuera, nada lo lee ni está en el PATH.
 # shellcheck disable=SC2034  # lo usan los scripts que cargan este fichero
@@ -33,17 +83,6 @@ pkg_installed() {
     else
         return 1
     fi
-}
-
-# ¿Lo ofrece algún repo activo? Con apt, tras apt-get update.
-pkg_available() {
-    case "$(pkg_manager)" in
-        # grep sin -q: con -q sale al encontrarlo, apt-cache recibe SIGPIPE y con
-        # pipefail (el de los install.sh) la tubería cuenta como fallo
-        apt) apt-cache policy "$1" 2>/dev/null | grep 'Candidate: [^(]' >/dev/null ;;
-        dnf) dnf -q list --available "$1" >/dev/null 2>&1 ;;
-        *)   return 1 ;;
-    esac
 }
 
 # --- Enlaces --------------------------------------------------------------------
@@ -103,8 +142,8 @@ restore_backup() {
         0) ;;
         1) mv "${cands[0]}" "$dst"
            info "tu config anterior vuelve a su sitio: ${cands[0]/#$HOME/\~} -> ${dst/#$HOME/\~}" ;;
-        *) info "AVISO: hay varios backups de ${dst/#$HOME/\~}; no se elige ninguno (mueve tú el que quieras):"
-           printf '       %s\n' "${cands[@]/#$HOME/\~}" ;;
+        *) aviso "hay varios backups de ${dst/#$HOME/\~}; no se elige ninguno (mueve tú el que quieras):" \
+               "${cands[@]/#$HOME/\~}" ;;
     esac
 }
 
@@ -196,7 +235,7 @@ tmux_reload() {
         elif tmux -S "$s" source-file "$conf"; then
             info "config aplicada al tmux '$(basename "$s")' en marcha, sin cerrar sus sesiones"
         else
-            info "AVISO: no se pudo aplicar la config al tmux '$(basename "$s")'"
+            aviso "no se pudo aplicar la config al tmux '$(basename "$s")'"
         fi
     done < <(tmux_sockets)
 }

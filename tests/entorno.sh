@@ -54,19 +54,32 @@ if [ -n "$DESDE" ]; then
     out="$(as "$U" "cd $D && ./install tmux zsh vim")"; r=$?
     check "install de $DESDE" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
     has "Missing key" "$out" && echo "      (sale el aviso de la clave de gh y sigue)"
-    paso "actualizar: git pull && ./actualizar"
-    out="$(as "$U" "cd $D && git pull && ./actualizar")"; r=$?; inst="$out"
+    paso "actualizar: git pull && ./actualizar -y"
+    out="$(as "$U" "cd $D && git pull && ./actualizar -y")"; r=$?; inst="$out"
     echo "$out" | grep -E '^==> (instalados|---)|quitado el enlace|AVISO|ERROR' | sangra ""
     check "git pull && ./actualizar" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
     check "queda en lo último de main" [ "$(as "$U" "git -C $D rev-parse HEAD")" = "$(git -C /srv/src rev-parse HEAD)" ]
 else
-    paso "./install tmux zsh vim"
-    out="$(as "$U" "cd $D && ./install tmux zsh vim")"; r=$?; inst="$out"
-    echo "$out" | grep -E 'AVISO|ERROR' | sangra ""
+    # Lo que cambia el sistema, para ver que --check y un install cancelado no lo tocan
+    sistema() { dpkg-query -W -f='${Package} ${Status}\n' | sort; ls -A "$H"; }
+    s0="$(sistema)"
+    paso "./install --check tmux zsh vim"
+    out="$(as "$U" "cd $D && ./install --check tmux zsh vim")"; r=$?
+    echo "$out" | grep -E '^  (instalar|sin|BLOQUEA|backup)|^ {13}arreglo|^==> (sin --check|AVISO)' | sangra ""
+    check "--check termina bien" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
+    check "--check no usa sudo ni toca nada" bash -c "[ \"\$1\" = \"\$2\" ] && ! grep -q 'apt-get update' <<<\"\$3\"" _ "$s0" "$(sistema)" "$out"
+    paso "./install sin terminal y sin -y"
+    out="$(as "$U" "cd $D && ./install tmux zsh vim")"; r=$?
+    check "no pregunta: falla, pide -y y no toca nada (ni sudo)" bash -c "[ $r -ne 0 ] && grep -q 'repite con -y' <<<\"\$1\" && ! grep -q 'apt-get update:' <<<\"\$1\" && [ \"\$2\" = \"\$3\" ]" _ "$out" "$s0" "$(sistema)"
+    paso "./install -y tmux zsh vim"
+    out="$(as "$U" "cd $D && ./install -y tmux zsh vim")"; r=$?; inst="$out"
+    echo "$out" | grep -E 'AVISO|ERROR|^==> resumen' | sangra ""
     check "install" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
     paso "./actualizar"
     out="$(as "$U" "cd $D && ./actualizar")"; r=$?
     check "actualizar" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
+    # tealdeer y nodejs, si los repos no los dan, siguen faltando: no por eso sudo
+    check "repetir no pide sudo (ni apt-get update)" bash -c "grep -q 'nada que confirmar' <<<\"\$1\" && ! grep -q 'apt-get update' <<<\"\$1\"" _ "$out"
 fi
 check "actualizar detecta tmux zsh vim" has "instalados: tmux zsh vim" "$out"
 check "sin enlaces de la versión anterior" bash -c "[ ! -L $H/.zshrc ] && [ ! -L $H/.vimrc ] && [ ! -L $H/.config/nvim/init.lua ] && [ ! -L $H/.local/bin/nvim ]"
@@ -91,7 +104,7 @@ if [ $hay_tldr -eq 1 ]; then
     t="$(as "$U" 'tldr tar')"; r=$?
     check "tldr tar enseña ejemplos" bash -c "[ $r -eq 0 ] && grep -q 'tar' <<<\"\$1\" && [ \$(wc -l <<<\"\$1\") -gt 5 ]" _ "$t"
 else
-    check "sin tealdeer en los repos: avisa y sigue" has "no están en los repos activos: tealdeer" "$inst"
+    check "sin tealdeer en los repos: lo dice el plan, y el resumen" bash -c "[ \$(grep -c 'tealdeer: no está en los repos activos' <<<\"\$1\") -eq 2 ]" _ "$inst"
 fi
 
 paso ".py en neovim"
@@ -111,6 +124,19 @@ check ".py: python con resaltado" has "ft=python resaltado=true" "$py"
 node_m="$(node -v 2>/dev/null | sed 's/^v//; s/\..*//')"
 if [ "${node_m:-0}" -ge 18 ]; then check ".py: pyright conectado" has "pyright" "$py"
 else check ".py: sin node 18 no hay pyright, y lo avisa" has "sin node >= 18" "$inst"; fi
+# Ubuntu 22.04: sus repos traen node 12, que no vale para los servidores LSP
+if [ "$PERFIL" = ubuntu-2204 ]; then
+    check "node 12 de los repos: ni nodejs ni npm, y sugiere NodeSource" bash -c \
+        "! dpkg-query -W -f='\${Status}' nodejs npm 2>/dev/null | grep -q 'install ok installed' && grep -q 'nodejs: los repos tienen la 12' <<<\"\$1\" && grep -q 'arreglo: curl -fsSL https://deb.nodesource.com' <<<\"\$1\"" _ "$inst"
+    # El arreglo que sugiere: su nodejs trae npm dentro y choca con el de la distro
+    paso "el arreglo del plan: NodeSource y ./install -y vim"
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null 2>&1
+    out="$(as "$U" "cd $D && ./install -y vim")"; r=$?
+    echo "$out" | grep -E '^  instalar|ERROR' | sangra ""
+    check "nodejs de NodeSource con su npm, sin el npm de la distro" bash -c \
+        "[ $r -eq 0 ] && grep -q 'npm (viene con nodejs)' <<<\"\$1\" && [ \"\$(node -v | sed 's/^v//; s/\\..*//')\" -ge 18 ] && command -v npm >/dev/null && ! dpkg-query -W -f='\${Status}' npm 2>/dev/null | grep -q 'install ok installed'" _ "$out"
+    [ $r -eq 0 ] || echo "$out" | tail -20
+fi
 check "bash sin tocar tras instalar" [ "$(bashfiles)" = "$b0" ]
 
 paso "uninstall vim zsh tmux"

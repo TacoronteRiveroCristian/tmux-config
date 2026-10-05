@@ -1,0 +1,11 @@
+# zsh/paquetes — lo que instala ./install zsh con apt/dnf. Columnas y cómo se
+# usa: lib/paquetes.sh. Salvo zsh, en Rocky/RHEL vienen de EPEL; tealdeer no está
+# en Ubuntu 22.04. tealdeer, solo si no hay ya un tldr: otros clientes chocan con él.
+#
+# apt                    dnf                      comando  mínimo  con  sin él
+zsh                      zsh                      -        5.8     -    bloquea
+zsh-autosuggestions      zsh-autosuggestions      -        -       -    sin las sugerencias del historial mientras escribes
+zsh-syntax-highlighting  zsh-syntax-highlighting  -        -       -    sin colores en la línea de comandos
+fzf                      fzf                      -        -       -    sin Ctrl+R, Ctrl+T ni Alt+c con fzf
+zoxide                   zoxide                   -        -       -    sin z (saltar a carpetas en las que ya estuviste)
+tealdeer                 tealdeer                 tldr     -       -    sin tldr (ejemplos de uso de cada comando)

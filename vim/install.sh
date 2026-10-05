@@ -10,11 +10,13 @@
 # (NVIM_APPNAME=tmux-config-nvim), sin tocar ~/.config/nvim ni el vi de la distro.
 #
 # Qué hace:
-#   1. Instala con apt/dnf lo que usa neovim: git, curl, unzip, ripgrep (buscar
-#      texto), shellcheck, node y npm (servidores LSP). En Rocky/RHEL ripgrep
-#      y shellcheck están en EPEL: sin EPEL avisa y sigue sin ellos. Apunta los
-#      que instala en ~/.local/state/tmux-config/vim.paquetes: ./uninstall vim
-#      quita esos y no los que ya estaban. vim no se instala.
+#   1. Lo que usa neovim de apt/dnf (tabla vim/paquetes: git, curl, unzip,
+#      ripgrep para buscar texto, shellcheck, node y npm para los servidores LSP)
+#      lo instala antes ./install, si falta. En Rocky/RHEL ripgrep y shellcheck
+#      están en EPEL, y sin node 18 en los repos no se instalan ni nodejs ni npm:
+#      el plan dice qué se pierde y sigue. Los que instala él los apunta en
+#      ~/.local/state/tmux-config/vim.paquetes: ./uninstall vim quita esos y no
+#      los que ya estaban. vim no se instala.
 #   2. Instala la versión oficial de neovim fijada abajo en
 #      ~/.local/opt/tmux-config/nvim-<versión> (sin root), comprobando su sha256,
 #      y enlaza nvim, vi, vim, view y vimdiff en ~/.local/opt/tmux-config/bin.
@@ -55,79 +57,37 @@ VIEJO_DATOS="${XDG_DATA_HOME:-$HOME/.local/share}/nvim"
 VIEJO_LINK="$HOME/.local/bin/nvim"
 VIEJO_NVIM="$HOME/.local/opt/nvim-v0.12.5"   # la única versión que instaló
 
-case "${1:-}" in
-    "")           ACTUALIZAR=0 ;;
-    --actualizar) ACTUALIZAR=1 ;;
-    *)            die "uso: ./install vim [--actualizar]" ;;
-esac
-
-case "$(pkg_manager)" in
-    apt) PAQUETES=(git unzip ripgrep shellcheck nodejs) ;;
-    dnf) PAQUETES=(git unzip ripgrep ShellCheck nodejs) ;;
-    *)   die "gestor de paquetes no soportado (apt o dnf)" ;;
-esac
-# curl solo si falta el comando: en Rocky viene curl-minimal, que choca con el paquete curl
-command -v curl >/dev/null || PAQUETES+=(curl)
-# npm igual: el nodejs de NodeSource lo trae dentro y choca con el paquete npm de la distro
-command -v npm >/dev/null || PAQUETES+=(npm)
-
-install_paquetes() {
-    local faltan=() instalar=() sin_repo=() ya=() nuevos=() filtrados=() p node_v
-    for p in "${PAQUETES[@]}"; do
-        pkg_installed "$p" || faltan+=("$p")
-    done
-    if [ ${#faltan[@]} -eq 0 ] && [ "$ACTUALIZAR" -eq 0 ]; then
-        info "paquetes ya instalados (para actualizarlos: ./install vim --actualizar)"
-        return
-    fi
-
-    need_sudo "instalar paquetes"
-    case "$(pkg_manager)" in
-        apt)
-            $SUDO apt-get update -qq
-            # install también actualiza los que ya están si hay versión nueva
-            if [ "$ACTUALIZAR" -eq 1 ]; then instalar=("${PAQUETES[@]}"); else instalar=("${faltan[@]}"); fi
-            info "instalando ${instalar[*]}"
-            # sin recomendados: solo lo imprescindible, que no cambie nada de lo
-            # que ya había (con ellos, npm traía bash-completion y build-essential)
-            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${instalar[@]}"
-            ;;
-        dnf)
-            for p in "${faltan[@]}"; do
-                if pkg_available "$p"; then instalar+=("$p"); else sin_repo+=("$p"); fi
-            done
-            # node y npm solo desde la 18: los servidores LSP de node no van con
-            # menos (Rocky 9 ofrece la 16 si no se activa otro módulo de nodejs)
-            if [[ " ${instalar[*]-} " == *" nodejs "* || " ${instalar[*]-} " == *" npm "* ]]; then
-                node_v="$(dnf -q repoquery --latest-limit 1 --qf '%{version}' nodejs 2>/dev/null | head -n 1)"
-                if [ -n "$node_v" ] && [ "${node_v%%.*}" -lt 18 ]; then
-                    for p in "${instalar[@]}"; do
-                        case "$p" in nodejs|npm) ;; *) filtrados+=("$p") ;; esac
-                    done
-                    instalar=(${filtrados[@]+"${filtrados[@]}"})
-                    info "AVISO: el nodejs de los repos activos es el $node_v y hace falta el 18: no se instalan nodejs ni npm (quedan los servidores LSP de Lua y Markdown)"
-                    info "       Para los demás (Rocky/Alma 9): sudo dnf module enable nodejs:20 && ./install vim"
-                fi
-            fi
-            if [ "$ACTUALIZAR" -eq 1 ]; then
-                for p in "${PAQUETES[@]}"; do pkg_installed "$p" && ya+=("$p"); done
-                [ ${#ya[@]} -eq 0 ] || $SUDO dnf upgrade -y -q "${ya[@]}"
-            fi
-            if [ ${#instalar[@]} -gt 0 ]; then
-                info "instalando ${instalar[*]}"
-                $SUDO dnf install -y -q "${instalar[@]}"
-            fi
-            ;;
+MODO=instalar
+for a in "$@"; do
+    case "$a" in
+        --plan)       MODO=plan ;;
+        --actualizar) ;;   # los paquetes los actualiza ./install
+        *)            die "uso: ./install vim [--actualizar] [--check] [-y]" ;;
     esac
+done
 
-    for p in "${faltan[@]}"; do pkg_installed "$p" && nuevos+=("$p"); done
-    [ ${#nuevos[@]} -eq 0 ] || state_add vim "${nuevos[@]}"
-
-    if [ ${#sin_repo[@]} -gt 0 ]; then
-        info "AVISO: no están en los repos activos: ${sin_repo[*]} (neovim funciona sin ellos)"
-        info "       En Rocky/RHEL vienen de EPEL. Si quieres activarlo en esta máquina"
-        info "       (Rocky/Alma): sudo dnf install epel-release && ./install vim"
+# Lo de este componente en el plan de ./install, sin tocar nada
+plan() {
+    local ed
+    case "$(uname -m)" in
+        x86_64|aarch64|arm64)
+            if [ -x "$NVIM_DIR/bin/nvim" ]; then
+                plan_linea ya "neovim $NVIM_VERSION"
+            else
+                plan_linea descargar "neovim $NVIM_VERSION de GitHub (con su sha256), sus plugins y los servidores LSP"
+            fi ;;
+        *)  plan_linea sin "neovim: no hay oficial para $(uname -m) → sin neovim (lo demás sí se instala)" ;;
+    esac
+    if { [ -e "$NVIM_CONF/init.lua" ] || [ -L "$NVIM_CONF/init.lua" ]; } && ! link_is_ours "$INIT_SRC" "$NVIM_CONF/init.lua"; then
+        plan_linea backup "${NVIM_CONF/#$HOME/\~}/init.lua no es de este repo: se guarda como init.lua.bak.<fecha>"
     fi
+    # git usa su core.editor antes que EDITOR; vi o vim, dentro de tmux, son este neovim
+    ed="$(git config --global --get core.editor 2>/dev/null || true)"
+    case "$ed" in
+        ""|vi|vim|nvim) ;;
+        *) plan_linea aviso "git seguirá abriendo su core.editor ($ed), no neovim" \
+               "arreglo: git config --global --unset core.editor" ;;
+    esac
 }
 
 # neovim oficial en ~/.local/opt/tmux-config/nvim-<versión>, verificado con su
@@ -193,7 +153,7 @@ copiar_estado() {
         if cp -an "$VIEJO_ESTADO/$d" "$NVIM_STATE/"; then
             info "copiado ${VIEJO_ESTADO/#$HOME/\~}/$d a ${NVIM_STATE/#$HOME/\~}"
         else
-            info "AVISO: no se pudo copiar ${VIEJO_ESTADO/#$HOME/\~}/$d"
+            aviso "no se pudo copiar ${VIEJO_ESTADO/#$HOME/\~}/$d"
         fi
     done
 }
@@ -227,7 +187,7 @@ migrar() {
         restore_backup "$VIEJO_CONF/init.vim" nvim/init.vim
         # lo propio de esta máquina pasa a la config nueva
         if [ -e "$VIEJO_CONF/local.lua" ] && [ -e "$NVIM_CONF/local.lua" ]; then
-            info "AVISO: hay dos local.lua; vale ${NVIM_CONF/#$HOME/\~}/local.lua y ${VIEJO_CONF/#$HOME/\~}/local.lua ya no se lee: júntalos a mano"
+            aviso "hay dos local.lua; vale ${NVIM_CONF/#$HOME/\~}/local.lua y ${VIEJO_CONF/#$HOME/\~}/local.lua ya no se lee: júntalos a mano"
         elif [ -e "$VIEJO_CONF/local.lua" ]; then
             mkdir -p "$NVIM_CONF"
             mv "$VIEJO_CONF/local.lua" "$NVIM_CONF/local.lua"
@@ -262,13 +222,13 @@ migrar() {
     # desinstala solo: puede que ya lo uses.
     if grep -qxE 'vim|vim-enhanced' < <(state_list vim); then
         if pkg_installed vim; then
-            info "AVISO: la versión anterior instaló vim, que cambia el vi de fuera de tmux; para quitarlo: sudo apt-get purge --autoremove vim (o ./uninstall vim)"
+            aviso "la versión anterior instaló vim, que cambia el vi de fuera de tmux; para quitarlo: sudo apt-get purge --autoremove vim (o ./uninstall vim)"
         elif pkg_installed vim-enhanced; then
-            info "AVISO: la versión anterior instaló vim-enhanced, que cambia vi y view fuera de tmux; para quitarlo: sudo dnf remove vim-enhanced (o ./uninstall vim)"
+            aviso "la versión anterior instaló vim-enhanced, que cambia vi y view fuera de tmux; para quitarlo: sudo dnf remove vim-enhanced (o ./uninstall vim)"
         fi
     fi
     bash_completion_heredado &&
-        info "AVISO: la versión anterior instaló bash-completion (recomendado de sus paquetes), que cambia el Tab de bash fuera de tmux; si no lo tenías antes, quítalo con: sudo apt-get purge bash-completion"
+        aviso "la versión anterior instaló bash-completion (recomendado de sus paquetes), que cambia el Tab de bash fuera de tmux; si no lo tenías antes, quítalo con: sudo apt-get purge bash-completion"
     return 0
 }
 
@@ -291,25 +251,24 @@ bash_completion_heredado() {
 
 # EDITOR lo pone zsh/.zshrc: aquí solo se comprueba que va a llegar
 editor_nvim() {
-    local ed
     # ~/.zshrc enlazado es el de la versión anterior: .tmux.conf lo sigue usando
     # hasta ./install zsh, y carga el .zshrc de ahora, que pone EDITOR
     if link_is_ours "$REPO_DIR/zsh/.zshrc" "$TC_DIR/zsh/.zshrc" || link_is_ours "$REPO_DIR/zsh/.zshrc" "$HOME/.zshrc"; then
         info "neovim es el editor por defecto en los panes nuevos de tmux (git commit, crontab -e, sudoedit...); vi y vim también lo abren"
     else
-        info "AVISO: sin ./install zsh, dentro de tmux ni nvim, ni vi, ni EDITOR llegan a este neovim"
+        aviso "sin ./install zsh, dentro de tmux ni nvim, ni vi, ni EDITOR llegan a este neovim"
     fi
     [ "$MIGRADO" -eq 0 ] ||
-        info "AVISO: en los panes de tmux ya abiertos EDITOR apunta al neovim anterior (~/.local/bin/nvim, ya quitado): abre uno nuevo"
-    # git usa su core.editor antes que EDITOR; vi o vim, dentro de tmux, son este neovim
-    ed="$(git config --global --get core.editor 2>/dev/null || true)"
-    case "$ed" in
-        ""|vi|vim|nvim) ;;
-        *) info "AVISO: git seguirá abriendo su core.editor ($ed). Para usar neovim: git config --global --unset core.editor" ;;
-    esac
+        aviso "en los panes de tmux ya abiertos EDITOR apunta al neovim anterior (~/.local/bin/nvim, ya quitado): abre uno nuevo"
+    # git core.editor lo avisa el plan
+    return 0
 }
 
-install_paquetes
+if [ "$MODO" = plan ]; then plan; exit 0; fi
+
+for c in git curl; do
+    command -v "$c" >/dev/null || die "falta $c: ./install vim lo instala"
+done
 install_nvim
 if [ "$NVIM_OK" -eq 1 ]; then
     copiar_estado

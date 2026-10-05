@@ -74,10 +74,12 @@ Tras `./actualizar`, los panes nuevos cargan la config. En uno ya abierto:
 Se puede ejecutar tantas veces como se quiera:
 
 1. Instala `zsh`, `zsh-autosuggestions`, `zsh-syntax-highlighting`, `fzf`,
-   `zoxide` y `tealdeer` (el comando `tldr`) si faltan, y descarga las páginas
-   de `tldr`. Lo que no está en los repos activos se salta con un aviso: en
-   Rocky/RHEL casi todo viene de EPEL (no lo activa por su cuenta) y `tealdeer`
-   no está en Ubuntu 22.04. zsh funciona sin ellos.
+   `zoxide` y `tealdeer` (el comando `tldr`) si faltan (tabla `zsh/paquetes`;
+   lo hace `./install` tras enseñar el plan), y descarga las páginas de `tldr`.
+   Lo que no está en los repos activos se salta, y el plan dice qué se pierde
+   sin cada uno: en Rocky/RHEL casi todo viene de EPEL (no lo activa por su
+   cuenta) y `tealdeer` no está en Ubuntu 22.04. zsh funciona sin ellos; sin
+   zsh 5.8 o superior, no se instala nada.
 2. Apunta en `~/.local/state/tmux-config/zsh.paquetes` qué paquetes ha
    instalado él.
 3. Comprueba que `.zshrc` carga sin errores con esa versión de zsh. Si no, no

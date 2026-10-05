@@ -1,0 +1,6 @@
+# tmux/paquetes — lo que instala ./install tmux con apt/dnf. Columnas y cómo se
+# usa: lib/paquetes.sh. tmux viene de serie en Ubuntu Server: si ya está, no se
+# instala. 3.2 es lo mínimo con el que carga .tmux.conf (Ubuntu 20.04 trae la 3.0a).
+#
+# apt  dnf   comando  mínimo  con  sin él
+tmux   tmux  tmux     3.2     -    bloquea

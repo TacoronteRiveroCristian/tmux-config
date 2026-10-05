@@ -107,9 +107,10 @@ y servidores que falten), cierra y vuelve a abrir neovim.
 Se puede ejecutar tantas veces como se quiera:
 
 1. Instala con apt/dnf lo que usa neovim: `git`, `curl`, `unzip`, `ripgrep`,
-   `shellcheck`, `nodejs` y `npm`. Apunta los que instala él. En Rocky/RHEL,
-   ripgrep y shellcheck están en EPEL: sin EPEL avisa y sigue. Con dnf, nodejs
-   y npm solo si los repos ofrecen node 18 o superior.
+   `shellcheck`, `nodejs` y `npm` (tabla `vim/paquetes`; lo hace `./install`
+   tras enseñar el plan). Apunta los que instala él. En Rocky/RHEL, ripgrep y
+   shellcheck están en EPEL: sin EPEL el plan dice qué se pierde y sigue.
+   nodejs y npm, solo si los repos ofrecen node 18 o superior (o ya lo tienes).
 2. Instala el **neovim oficial v0.12.5** en `~/.local/opt/tmux-config` (sin
    root), comprobando su sha256, y enlaza `nvim`, `vi`, `vim`, `view` y
    `vimdiff` en `~/.local/opt/tmux-config/bin`. Las distros traen de la 0.6 a
@@ -119,16 +120,18 @@ Se puede ejecutar tantas veces como se quiera:
 4. No toca la config de bash: neovim es el editor por defecto porque
    `zsh/.zshrc` lo pone. Sin `./install zsh`, lo avisa. Para otro editor,
    `export EDITOR=...` en `~/.zshrc.local`. Si git tiene un `core.editor` que no
-   es vi ni vim, también lo avisa: git lo usa antes que `EDITOR`.
+   es vi ni vim, el plan lo avisa: git lo usa antes que `EDITOR`.
 
 La primera vez descarga unos cientos de MB (node, plugins, servidores LSP) y
 tarda varios minutos; las siguientes no descarga nada.
 
 Los servidores LSP de node (bash, Python, YAML, JSON, Dockerfile) necesitan
-node 18 o superior: Debian 12/13 y Ubuntu 24.04 sí; en Ubuntu 22.04 (node 12)
-quedan Lua y Markdown. Rocky 9 ofrece por defecto el 16: `./install vim` no lo
-instala y quedan Lua y Markdown; con `sudo dnf module enable nodejs:20 &&
-./install vim` están todos.
+node 18 o superior: Debian 12/13 y Ubuntu 24.04 sí. Ubuntu 22.04 trae el 12 y
+Rocky 9 por defecto el 16: `./install vim` no instala ni nodejs ni npm (solo
+serían peso), quedan Lua y Markdown, y el plan sugiere el arreglo: en Ubuntu,
+el repo de NodeSource (`curl -fsSL https://deb.nodesource.com/setup_22.x |
+sudo -E bash - && ./install vim`); en Rocky, `sudo dnf module enable nodejs:20
+&& ./install vim`.
 
 En un Debian/Ubuntu sin python3 (imágenes mínimas), el `npm` de la distro lo
 necesita, y con él llega `/etc/inputrc`, que cambia algunas teclas de bash. Los

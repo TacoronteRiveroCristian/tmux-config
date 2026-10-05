@@ -17,9 +17,11 @@ tests/run -l               # la lista
 | `ubuntu-server` | Ubuntu Server 24.04, con tmux, vim y bash-completion de serie (uninstall debe respetarlos) |
 | `ubuntu-2204` | Ubuntu 22.04 (node 12, sin tealdeer) |
 | `migracion` | La versión que enlazaba `~/.zshrc`, y `git pull && ./actualizar` |
-| `actualizar` | `./actualizar` con cambios de verdad en upstream |
+| `actualizar` | `./actualizar` con cambios de verdad en upstream, un paquete nuevo en la tabla y la pregunta `[S/n]` con terminal |
 
-En cada máquina comprueba que install y actualizar terminan bien, que un pane
+En cada máquina comprueba que `./install --check` no toca nada, que sin
+terminal y sin `-y` no instala, que install y actualizar terminan bien (y que
+repetir no pide sudo), que un pane
 nuevo de tmux arranca zsh con `vim` = el neovim del repo y `z`, que fuera de
 tmux no hay nada del repo, que un `.py` sale con resaltado y pyright, que `tldr`
 funciona, que bash no se toca, y que uninstall no deja restos y respeta lo que

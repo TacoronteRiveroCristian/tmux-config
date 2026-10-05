@@ -3,6 +3,7 @@
 #
 #   ./actualizar                git pull + ./install de los componentes instalados
 #   ./actualizar --actualizar   además, actualizar sus paquetes
+#   ./actualizar -y             sin preguntar si el plan instala algo (sin terminal, hace falta)
 #
 # ./install se puede repetir: lo que ya está lo salta. Así no hace falta saber qué
 # cambió (config, paquetes, rutas, versión de neovim): tras cada pull, todo.
@@ -15,9 +16,9 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 flags=()
 for a in "$@"; do
     case "$a" in
-        --actualizar) flags+=("$a") ;;
-        -h|--help)    sed -n '2,8s/^# \{0,1\}//p' "$REPO_DIR/actualizar"; exit 0 ;;
-        *)            die "uso: ./actualizar [--actualizar]" ;;
+        --actualizar|-y|--yes) flags+=("$a") ;;
+        -h|--help)    sed -n '2,9s/^# \{0,1\}//p' "$REPO_DIR/actualizar"; exit 0 ;;
+        *)            die "uso: ./actualizar [--actualizar] [-y]" ;;
     esac
 done
 

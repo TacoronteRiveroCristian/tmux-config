@@ -1,0 +1,19 @@
+# vim/paquetes — lo que instala ./install vim con apt/dnf. Columnas y cómo se
+# usa: lib/paquetes.sh. neovim no va aquí: es el oficial, lo descarga install.sh.
+# curl, solo si falta el comando: en Rocky viene curl-minimal, que choca con el
+# paquete curl. npm igual: el nodejs de NodeSource lo trae dentro y choca con el
+# de la distro. Los servidores LSP de node necesitan el 18 (Ubuntu 22.04 trae el
+# 12, Rocky 9 el 16): con menos, ni nodejs ni npm, que solo serían peso.
+# ripgrep y shellcheck, en Rocky/RHEL, de EPEL.
+#
+# apt       dnf         comando  mínimo  con     sin él
+git         git         -        -       -       bloquea
+curl        curl        curl     -       -       bloquea
+unzip       unzip       -        -       -       bloquea
+ripgrep     ripgrep     -        -       -       sin buscar texto en el proyecto (Espacio g)
+shellcheck  ShellCheck  -        -       -       sin los avisos de shellcheck en los scripts de bash
+nodejs      nodejs      node     18      -       sin los LSP que van con node: Bash, Python, YAML, JSON y Dockerfile
+npm         npm         npm      -       nodejs  sin los LSP que van con node: Bash, Python, YAML, JSON y Dockerfile
+
+arreglo  nodejs  apt  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && ./install vim   (añade el repo de NodeSource)
+arreglo  nodejs  dnf  sudo dnf module enable nodejs:20 && ./install vim   (Rocky/Alma 9)

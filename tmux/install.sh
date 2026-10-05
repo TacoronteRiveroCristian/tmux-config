@@ -7,9 +7,10 @@
 #   git pull && ./install tmux   traer cambios del repo y aplicarlos
 #
 # Qué hace:
-#   1. Instala tmux si falta (o lo actualiza con --actualizar). Si lo instala él,
-#      lo apunta en ~/.local/state/tmux-config/tmux.paquetes: ./uninstall tmux
-#      solo quita ese, no el que ya estaba (Ubuntu Server lo trae).
+#   1. tmux (tabla tmux/paquetes) lo instala antes ./install, si falta, y lo
+#      apunta en ~/.local/state/tmux-config/tmux.paquetes: ./uninstall tmux
+#      solo quita ese, no el que ya estaba (Ubuntu Server lo trae). Con --plan,
+#      este script solo enseña lo suyo del plan: si aparta tu ~/.tmux.conf.
 #   2. Comprueba que .tmux.conf carga sin errores con esa versión de tmux.
 #   3. Enlaza ~/.tmux.conf a este repo (con backup de la config anterior).
 #   4. Enlaza el comando tmux-guia en ~/.local/opt/tmux-config/bin, que solo está
@@ -27,32 +28,23 @@ GUIA_SRC="$REPO_DIR/bin/tmux-guia"
 GUIA_DST="$TC_DIR/bin/tmux-guia"
 GUIA_VIEJO="$HOME/.local/bin/tmux-guia"   # donde la enlazaba la versión anterior
 
-case "${1:-}" in
-    "")           ACTUALIZAR=0 ;;
-    --actualizar) ACTUALIZAR=1 ;;
-    *)            die "uso: ./install tmux [--actualizar]" ;;
-esac
+MODO=instalar
+for a in "$@"; do
+    case "$a" in
+        --plan)       MODO=plan ;;
+        --actualizar) ;;   # los paquetes los actualiza ./install
+        *)            die "uso: ./install tmux [--actualizar] [--check] [-y]" ;;
+    esac
+done
 
-install_tmux() {
-    # sudo solo para el gestor de paquetes, y solo si no somos root
-    local SUDO=""
-    if [ "$(id -u)" -ne 0 ]; then
-        command -v sudo >/dev/null || die "hace falta sudo (o ejecutar como root) para instalar tmux"
-        SUDO="sudo"
+# Lo de este componente en el plan de ./install, sin tocar nada
+plan() {
+    if { [ -e "$CONF_DST" ] || [ -L "$CONF_DST" ]; } && ! link_is_ours "$CONF_SRC" "$CONF_DST"; then
+        plan_linea backup "~/.tmux.conf no es de este repo: se guarda como ~/.tmux.conf.bak.<fecha>"
     fi
-    if command -v apt-get >/dev/null; then
-        $SUDO apt-get update -qq
-        # install también actualiza si ya está instalado y hay versión nueva.
-        # Sin recomendados: solo lo imprescindible, que no cambie nada de lo que ya había
-        $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends tmux
-    elif command -v dnf >/dev/null; then
-        if rpm -q tmux >/dev/null 2>&1; then
-            $SUDO dnf upgrade -y -q tmux
-        else
-            $SUDO dnf install -y -q tmux
-        fi
-    else
-        die "gestor de paquetes no soportado (apt o dnf): instala tmux a mano y vuelve a ejecutar"
+    # tmux carga /etc/tmux.conf antes que la del usuario: rompería el mapa único
+    if [ -e /etc/tmux.conf ]; then
+        plan_linea aviso "existe /etc/tmux.conf y se carga antes que ~/.tmux.conf"
     fi
 }
 
@@ -86,7 +78,7 @@ link_guia() {
     if [ -L "$GUIA_DST" ] && [ "$(readlink "$GUIA_DST")" = "$GUIA_SRC" ]; then
         info "tmux-guia ya apunta a este repo"
     elif [ -e "$GUIA_DST" ] || [ -L "$GUIA_DST" ]; then
-        info "AVISO: $GUIA_DST ya existe y no es de este repo: no se toca"
+        aviso "$GUIA_DST ya existe y no es de este repo: no se toca"
     else
         mkdir -p "$(dirname "$GUIA_DST")"
         ln -s "$GUIA_SRC" "$GUIA_DST"
@@ -98,16 +90,9 @@ link_guia() {
     fi
 }
 
-if ! command -v tmux >/dev/null; then
-    info "instalando tmux"
-    install_tmux
-    pkg_installed tmux && state_add tmux tmux
-elif [ "$ACTUALIZAR" -eq 1 ]; then
-    info "actualizando tmux"
-    install_tmux
-else
-    info "tmux ya instalado (para actualizarlo: ./install tmux --actualizar)"
-fi
+if [ "$MODO" = plan ]; then plan; exit 0; fi
+
+command -v tmux >/dev/null || die "falta tmux: ./install tmux lo instala"
 info "$(tmux -V) instalado"
 
 check_conf
@@ -115,9 +100,6 @@ info "config válida con $(tmux -V)"
 
 link_conf
 link_guia
-
-# tmux carga /etc/tmux.conf antes que la del usuario: rompería el mapa único
-[ -e /etc/tmux.conf ] && info "AVISO: existe /etc/tmux.conf y se carga antes que ~/.tmux.conf"
 
 tmux_reload
 info "listo"

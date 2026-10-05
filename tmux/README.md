@@ -60,19 +60,21 @@ servidores.
 
 Se puede ejecutar tantas veces como se quiera:
 
-1. Instala tmux (apt o dnf) si falta; solo entonces usa sudo, y lo apunta en
-   `~/.local/state/tmux-config/tmux.paquetes`. Con `--actualizar`, también lo
-   actualiza a la última versión de la distro.
+1. Instala tmux (apt o dnf) si falta, o si es anterior a la 3.2; solo entonces
+   usa sudo, y lo apunta en `~/.local/state/tmux-config/tmux.paquetes`. Si los
+   repos no tienen la 3.2, no toca nada (`BLOQUEA` en el plan). Con
+   `--actualizar`, también lo actualiza a la última versión de la distro. Lo
+   hace `./install` tras enseñar el plan, con la tabla `tmux/paquetes`.
 2. Comprueba que `.tmux.conf` carga sin errores con esa versión, en un servidor
    tmux aislado que no toca las sesiones en marcha. Si no carga, no enlaza nada.
 3. Enlaza `~/.tmux.conf` a este repo. Si ya había una config, la guarda como
-   `~/.tmux.conf.bak.<fecha>`.
+   `~/.tmux.conf.bak.<fecha>`; el plan lo dice antes y pide confirmación.
 4. Enlaza `tmux-guia` en `~/.local/opt/tmux-config/bin`. `Alt+h` la abre por su
    ruta en el repo, sin depender del PATH.
 5. Aplica la config a los tmux en marcha, **sin cerrar sesiones** (lo mismo que
    `Ctrl+B R`). Los que se lanzaron con otra config (`-f`) no los toca.
 
-Si existe `/etc/tmux.conf`, lo avisa: tmux lo carga antes que `~/.tmux.conf`.
+Si existe `/etc/tmux.conf`, el plan lo avisa: tmux lo carga antes que `~/.tmux.conf`.
 
 ## Lo que hace `./uninstall tmux`
 

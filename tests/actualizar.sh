@@ -19,7 +19,7 @@ out="$(as u3 "cd $D && ./actualizar")"; r=$?
 check "termina bien y lo dice" bash -c "[ $r -eq 0 ] && grep -q 'no hay nada instalado' <<<\"\$1\"" _ "$out"
 
 paso "todo instalado (u) y upstream cambia ./actualizar y la guía"
-out="$(as u "cd $D && ./install tmux zsh vim")"; r=$?
+out="$(as u "cd $D && ./install -y tmux zsh vim")"; r=$?
 check "install tmux zsh vim" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -20
 commit_upstream "marca" "sed -i 's/^info \"instalados:/info \"MARCA-NUEVA\"\ninfo \"instalados:/' actualizar && echo >> docs/GUIA.md"
 out="$(as u "cd $D && ./actualizar")"; r=$?
@@ -31,15 +31,33 @@ check "detecta y aplica tmux zsh vim" bash -c "grep -q 'instalados: tmux zsh vim
 
 paso "otra vez, sin cambios"
 t0=$(date +%s); out="$(as u "cd $D && ./actualizar")"; r=$?
-check "idempotente: no reinstala paquetes" bash -c "[ $r -eq 0 ] && grep -q 'paquetes ya instalados (para actualizarlos: ./install vim' <<<\"\$1\"" _ "$out"
+check "idempotente: no reinstala paquetes ni pide sudo" bash -c "[ $r -eq 0 ] && grep -q 'nada que confirmar' <<<\"\$1\" && ! grep -qE 'apt-get update|instalando' <<<\"\$1\"" _ "$out"
 echo "      (tardó $(( $(date +%s) - t0 ))s)"
 
 paso "solo tmux (u2), y --actualizar"
-as u2 "cd $D && ./install tmux" >/dev/null; as u2 "git -C $D pull -q"
+as u2 "cd $D && ./install -y tmux" >/dev/null; as u2 "git -C $D pull -q"
 out="$(as u2 "cd $D && ./actualizar")"; r=$?
 check "solo aplica tmux" bash -c "[ $r -eq 0 ] && grep -q 'instalados: tmux\$' <<<\"\$1\" && ! grep -qE -- '--- (zsh|vim)' <<<\"\$1\"" _ "$out"
 out="$(as u2 "cd $D && ./actualizar --actualizar")"; r=$?
-check "--actualizar llega a ./install" bash -c "[ $r -eq 0 ] && grep -q 'actualizando tmux' <<<\"\$1\"" _ "$out"
+check "--actualizar sin terminal ni -y: no actualiza, pide -y" bash -c "[ $r -ne 0 ] && grep -q 'repite con -y' <<<\"\$1\" && ! grep -q 'actualizando' <<<\"\$1\"" _ "$out"
+out="$(as u2 "cd $D && ./actualizar --actualizar -y")"; r=$?
+check "--actualizar -y llega a ./install" bash -c "[ $r -eq 0 ] && grep -q 'actualizando tmux' <<<\"\$1\"" _ "$out"
+
+paso "upstream añade un paquete a la tabla de tmux (u2)"
+commit_upstream "jq" "printf 'jq jq - - - sin jq\\n' >> tmux/paquetes"
+out="$(as u2 "cd $D && ./actualizar")"; r=$?
+check "sin terminal: enseña el plan, pide -y y no instala" bash -c "[ $r -ne 0 ] && grep -q '^  instalar   jq' <<<\"\$1\" && grep -q 'repite con -y' <<<\"\$1\" && ! command -v jq" _ "$out"
+out="$(as u2 "cd $D && ./actualizar -y")"; r=$?
+check "con -y lo instala y lo apunta como de tmux" bash -c "[ $r -eq 0 ] && command -v jq >/dev/null && grep -qx jq /home/u2/.local/state/tmux-config/tmux.paquetes"
+
+# tmux ya lo instaló u2: lo que hay que confirmar es apartar el ~/.tmux.conf de u3
+paso "con terminal (u3, con su ~/.tmux.conf): pregunta [S/n]"
+as u3 "echo '# mía' > ~/.tmux.conf"
+out="$(as u3 "cd $D && printf 'n\\n' | script -qec './install tmux' /dev/null")"
+check "el plan dice que aparta su config" has "~/.tmux.conf no es de este repo: se guarda como" "$out"
+check "n: cancela sin tocar nada" bash -c "grep -q 'cancelado: no se ha tocado nada' <<<\"\$1\" && [ ! -L /home/u3/.tmux.conf ] && grep -q mía /home/u3/.tmux.conf" _ "$out"
+out="$(as u3 "cd $D && printf '\\n' | script -qec './install tmux' /dev/null")"
+check "Intro: sigue, enlaza y guarda la suya" bash -c "grep -q '¿Seguir? \\[S/n\\]' <<<\"\$1\" && [ -L /home/u3/.tmux.conf ] && grep -q mía /home/u3/.tmux.conf.bak.*" _ "$out"
 
 paso "pull imposible: commit local de u y otro en upstream"
 as u "cd $D && echo local >> README.md && git commit -qam local"

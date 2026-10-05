@@ -37,7 +37,7 @@ los dos se abren con `Alt+h`.
 | [`tmux/`](tmux/README.md) | Instalador y desinstalador de tmux | No |
 | [`vim/`](vim/README.md) | Instalador y desinstalador de neovim (el componente se llama `vim`; su config está en `nvim/`) | No |
 | [`bin/`](bin/) | `tmux-guia` (abre la guía); `view` y `vimdiff`, neovim en solo lectura y comparando (nvim no lo deduce del nombre) | No |
-| [`lib/`](lib/comun.sh) | `comun.sh`: lo común a los instaladores (paquetes, enlaces con backup, estado, recargar tmux) | No |
+| [`lib/`](lib/comun.sh) | `comun.sh`: lo común a los instaladores (enlaces con backup, estado, avisos, recargar tmux); `paquetes.sh`: el plan de paquetes, a partir de la tabla `paquetes` de cada componente | No |
 | [`tests/`](tests/README.md) | Pruebas en Docker que imitan los servidores | Si cambias instaladores |
 | [`.github/`](.github/workflows/tests.yml) | CI: pasa esas pruebas en cada push | No |
 | `install`, `uninstall`, `actualizar` | Los comandos de [Empezar](#empezar) (`uninstall` es un enlace a `install`) | No |
@@ -47,7 +47,8 @@ los dos se abren con `Alt+h`.
 ```bash
 git clone https://github.com/TacoronteRiveroCristian/tmux-config.git ~/GitHub/personal/tmux-config
 cd ~/GitHub/personal/tmux-config
-./install tmux zsh vim       # o solo los que quieras; ./install sin nada los lista
+./install --check tmux zsh vim   # opcional: el plan, sin tocar nada ni usar sudo
+./install tmux zsh vim           # o solo los que quieras; ./install sin nada los lista
 tmux new -A -s trabajo
 ```
 
@@ -57,12 +58,27 @@ tmux new -A -s trabajo
 | `zsh` | zsh en los panes, con sugerencias, fzf, zoxide y tldr | [zsh/](zsh/README.md) |
 | `vim` | neovim 0.12.5 con árbol de ficheros, buscador, LSP y git; también al escribir `vi` o `vim` | [nvim/](nvim/README.md) |
 
+- `./install` enseña primero el plan: lo que ya está, los paquetes que
+  instalaría (con cuántos entran contando sus dependencias), las configs tuyas
+  que apartaría como `*.bak.<fecha>`, lo que los repos no dan y qué se pierde
+  sin ello, con el arreglo sugerido (nunca añade repos por su cuenta). Para
+  saber qué dan los repos, si va a instalar algo, antes pone al día los índices
+  de apt (`apt-get update`, con sudo; no instala nada). Si va a instalar o
+  apartar algo pregunta `[S/n]`; si algo imprescindible falta
+  (`BLOQUEA`), no toca nada. Al final, un resumen de lo que quedó sin instalar
+  y los avisos.
+- `--check` se queda en el plan: ni sudo ni cambios. `-y` sigue sin preguntar;
+  sin terminal (scripts, cron) hace falta, o no instala nada.
 - `./install` se puede repetir: instala lo que falte (sudo solo entonces) y
   salta lo que ya está. Con `--actualizar`, además actualiza los paquetes.
+  Los paquetes de cada componente están en su tabla (`tmux/paquetes`,
+  `zsh/paquetes`, `vim/paquetes`), con la versión mínima y qué se pierde sin
+  cada uno.
 - `./actualizar` trae los cambios del repo (`git pull`) y vuelve a pasar
   `./install` por los componentes que tengas, así que no hace falta saber qué
-  cambió. Con `--actualizar`, también los paquetes. Si hay cambios locales que
-  chocan con el pull, no instala nada.
+  cambió. Con `--actualizar`, también los paquetes; con `-y`, sin preguntar si
+  el pull trae un paquete nuevo. Si hay cambios locales que chocan con el
+  pull, no instala nada.
 - `./uninstall <componente>` enseña lo que va a hacer y pide confirmación.
   Solo quita los paquetes que instaló él; los que ya estaban, no.
 - Los paquetes de apt/dnf son de todo el sistema. Con apt se instalan sin
