@@ -59,7 +59,9 @@ clonar "$U"
 if [ -n "$DESDE" ]; then
     paso "lo que ya tenía: $DESDE + ./install tmux zsh vim"
     as "$U" "git -C $D reset -q --hard $DESDE"
-    out="$(as "$U" "cd $D && ./install tmux zsh vim")"; r=$?
+    # Sin terminal, las versiones con plan piden -y; las anteriores no lo entienden
+    y=""; grep -q -- '--yes' "$H/GitHub/personal/tmux-config/install" && y="-y "
+    out="$(as "$U" "cd $D && ./install ${y}tmux zsh vim")"; r=$?
     check "install de $DESDE" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
     has "Missing key" "$out" && echo "      (sale el aviso de la clave de gh y sigue)"
     paso "actualizar: git pull && ./actualizar -y"
