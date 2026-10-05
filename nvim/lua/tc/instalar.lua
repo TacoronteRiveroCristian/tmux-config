@@ -57,7 +57,7 @@ function M.comprobar()
     if vim.g.colors_name ~= 'tokyonight-night' then
         falla('tema: ' .. tostring(vim.g.colors_name))
     end
-    for _, modulo in ipairs({ 'lualine', 'which-key', 'nvim-tree', 'telescope', 'gitsigns', 'blink.cmp', 'mason', 'nvim-autopairs', 'ibl' }) do
+    for _, modulo in ipairs({ 'lualine', 'which-key', 'nvim-tree', 'telescope', 'gitsigns', 'blink.cmp', 'mason', 'nvim-autopairs', 'ibl', 'nvim-surround', 'render-markdown' }) do
         local ok, err = pcall(require, modulo)
         if not ok then falla('plugin ' .. modulo .. ': ' .. tostring(err)) end
     end

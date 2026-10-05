@@ -24,10 +24,11 @@ para dejar de escribir. `Espacio w` guarda y `Espacio q` cierra. Pulsa
 Trae menú de atajos (which-key), árbol de ficheros, buscador de ficheros y de
 texto, LSP (errores en vivo, ir a la definición, renombrar) para bash con
 shellcheck, Python, YAML, JSON, Dockerfile, Lua y Markdown, autocompletado, git
-en el margen, copiar al portapapeles de tu PC también por SSH, y el tema
-tokyonight con barra de estado y guías de sangría. Sin iconos: se ve igual con
-cualquier fuente. Las teclas: `Espacio ?` dentro de neovim, o la sección "En
-neovim" de [docs/CHEATSHEET.md](../docs/CHEATSHEET.md#en-neovim-si-instalaste-install-vim).
+en el margen, rodear texto con comillas o paréntesis (nvim-surround), markdown
+con formato (render-markdown), copiar al portapapeles de tu PC también por SSH,
+y el tema tokyonight con barra de estado y guías de sangría. Sin iconos: se ve
+igual con cualquier fuente. Las teclas: `Espacio ?` dentro de neovim, o la
+sección "En neovim" de [docs/CHEATSHEET.md](../docs/CHEATSHEET.md#en-neovim-si-instalaste-install-vim).
 
 - `nvim carpeta` abre el árbol en esa carpeta y trabaja en ella.
 - Si Claude (u otro programa, desde otro pane) cambia un fichero que tienes

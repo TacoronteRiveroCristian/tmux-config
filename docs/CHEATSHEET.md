@@ -99,6 +99,7 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     Espacio b  ·  r       ficheros abiertos · recientes
     Ctrl+h  ·  Ctrl+l     pasar del árbol al fichero y al revés
     gcc  ·  gc            comentar la línea · la selección
+    ysiw" · cs"' · ds(    rodear la palabra con " · cambiar " por ' · quitar ( )
     Espacio y             copiar al portapapeles, también por SSH
 
   En el árbol:
@@ -126,6 +127,8 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
   Si Claude u otro programa cambia un fichero que tienes abierto, neovim lo
   relee solo. Si tú también lo habías cambiado, pregunta: O se queda con lo
   tuyo, L carga lo de fuera.
+
+  Los .md se ven con formato; al escribir, y en la línea del cursor, tal cual.
 
 ## Si un atajo Alt no hace nada
 

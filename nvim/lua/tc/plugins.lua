@@ -227,6 +227,46 @@ require('lazy').setup({
         main = 'ibl', event = { 'BufReadPost', 'BufNewFile' },
         opts = { indent = { char = '│' }, scope = { enabled = false } },
     },
+
+    -- Rodear texto con comillas, paréntesis o etiquetas: ysiw" rodea la palabra,
+    -- cs"' cambia " por ', ds( quita los paréntesis; en visual, S"
+    { 'kylechui/nvim-surround', commit = '2e93e154de9ff326def6480a4358bfc149d5da2c', event = 'VeryLazy' }, -- v4.0.5
+
+    -- Markdown con formato (README, docs, notas): títulos con fondo, bloques de
+    -- código, tablas y listas. Al escribir, y en la línea del cursor, se ve tal cual.
+    {
+        'MeanderingProgrammer/render-markdown.nvim', commit = '640a3ec6d538bad17c328be373c7cad0293d9589', -- v8.14.0
+        ft = 'markdown',
+        -- Su config por defecto usa iconos de Nerd Font (caracteres de uso privado:
+        -- sin esa fuente salen cuadros). Se quitan de todos sus textos, y los
+        -- títulos dejan sus # a la vista. La copia va entera, no solo los textos:
+        -- las listas no se mezclan con las de por defecto, las sustituyen.
+        opts = function()
+            local function sin_iconos(t)
+                local r = {}
+                for k, v in pairs(t) do
+                    if type(v) == 'table' then
+                        r[k] = sin_iconos(v)
+                    elseif type(v) == 'string' then
+                        r[k] = vim.fn.substitute(v, [[[\ue000-\uf8ff\U000f0000-\U0010ffff] \=]], '', 'g')
+                    else
+                        r[k] = v
+                    end
+                end
+                return r
+            end
+            local opts = sin_iconos(require('render-markdown').default)
+            opts.heading.icons = {}
+            opts.sign = { enabled = false }
+            opts.checkbox.unchecked.icon = '[ ]'
+            opts.checkbox.checked.icon = '[x]'
+            opts.checkbox.custom.todo.rendered = '[-]'
+            -- los avisos de GitHub (> [!NOTE]) como "Note:", que ocupa lo mismo
+            -- que lo que tapa
+            for _, aviso in pairs(opts.callout) do aviso.rendered = aviso.rendered .. ':' end
+            return opts
+        end,
+    },
 }, {
     root = datos .. '/lazy',
     lockfile = vim.fn.stdpath('state') .. '/tmux-config-lazy-lock.json',
