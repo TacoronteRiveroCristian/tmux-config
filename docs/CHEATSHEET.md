@@ -123,6 +123,10 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
   Ficheros del sistema: sudoedit /etc/fichero (con tu config, sin abrir el
   editor como root)
 
+  Si Claude u otro programa cambia un fichero que tienes abierto, neovim lo
+  relee solo. Si tú también lo habías cambiado, pregunta: O se queda con lo
+  tuyo, L carga lo de fuera.
+
 ## Si un atajo Alt no hace nada
 
 Tu terminal se lo queda antes de que llegue a tmux. Por defecto:

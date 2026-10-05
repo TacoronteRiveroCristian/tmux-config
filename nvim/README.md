@@ -30,6 +30,8 @@ cualquier fuente. Las teclas: `Espacio ?` dentro de neovim, o la sección "En
 neovim" de [docs/CHEATSHEET.md](../docs/CHEATSHEET.md#en-neovim-si-instalaste-install-vim).
 
 - `nvim carpeta` abre el árbol en esa carpeta y trabaja en ella.
+- Si Claude (u otro programa, desde otro pane) cambia un fichero que tienes
+  abierto, neovim lo relee solo; si tú también lo habías cambiado, pregunta.
 - Deshacer se conserva al cerrar el fichero, y al reabrirlo vuelve a la línea
   donde estabas. Al salir con cambios sin guardar, pregunta en vez de dar error.
 - Dentro de tmux (con `./install zsh`) es el **editor por defecto**: lo que

@@ -48,6 +48,17 @@ vim.api.nvim_create_autocmd('BufReadPost', {
     end,
 })
 
+-- Releer el fichero si ha cambiado fuera (Claude en otro pane, git checkout...).
+-- Al volver a este pane o a ese fichero ya lo hace neovim (tmux le avisa del
+-- foco: focus-events); esto cubre el pane que no pierde el foco: unos segundos
+-- después de la última tecla. Si además tenía cambios sin guardar, neovim
+-- pregunta con cuál quedarse.
+vim.api.nvim_create_autocmd('CursorHold', {
+    callback = function()
+        if vim.fn.getcmdwintype() == '' then vim.cmd.checktime() end
+    end,
+})
+
 -- Resaltar un momento lo que acabas de copiar
 vim.api.nvim_create_autocmd('TextYankPost', {
     callback = function() vim.hl.on_yank({ timeout = 200 }) end,

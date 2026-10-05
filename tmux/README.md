@@ -15,7 +15,7 @@ moverla rompería los servidores ya instalados.
 
 | Sección | Qué hay |
 |---|---|
-| General | Ratón, historial (50 000 líneas), numerar desde 1, colores, zsh en los panes |
+| General | Ratón, historial (50 000 líneas), numerar desde 1, colores, avisos de foco (neovim relee lo que cambia fuera), zsh en los panes |
 | Atajos | Lo común a todos (`escape-time`) |
 | Día a día: Alt | Los atajos `Alt+tecla`, sin prefijo. También la barra de abajo (`status-left`), junto al modo redimensionar que la usa |
 | Ocasional: prefijo Ctrl+B | Los que van después de `Ctrl+B` |
