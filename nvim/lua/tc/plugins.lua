@@ -62,7 +62,17 @@ require('lazy').setup({
         opts = {
             preset = 'modern',
             delay = 400,
-            icons = { mappings = false },
+            icons = {
+                mappings = false,
+                -- las teclas por su nombre: por defecto son iconos de Nerd Font
+                keys = {
+                    C = 'Ctrl+', M = 'Alt+', S = 'Shift+', D = 'Super+', Space = 'Espacio', Tab = 'Tab',
+                    CR = 'Enter', NL = 'Enter', Esc = 'Esc', BS = 'Retroceso',
+                    Up = '↑', Down = '↓', Left = '←', Right = '→', ScrollWheelUp = 'Rueda↑', ScrollWheelDown = 'Rueda↓',
+                    F1 = 'F1', F2 = 'F2', F3 = 'F3', F4 = 'F4', F5 = 'F5', F6 = 'F6',
+                    F7 = 'F7', F8 = 'F8', F9 = 'F9', F10 = 'F10', F11 = 'F11', F12 = 'F12',
+                },
+            },
             spec = {
                 { '<leader>c', group = 'Código (LSP)' },
                 { '<leader>v', group = 'Git (versiones)' },
