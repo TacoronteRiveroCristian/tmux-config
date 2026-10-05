@@ -34,6 +34,11 @@ puede, se saltan. Los logs quedan en `tests/logs/`.
 GitHub Actions las pasa en cada push (`.github/workflows/tests.yml`), las
 Raspberry en un runner arm64 nativo.
 
+`tests/atajos.sh` comprueba, sin Docker y en un segundo, que los atajos
+`Espacio`+tecla de neovim son los mismos en `nvim/lua` y en la sección "En
+neovim" de [docs/CHEATSHEET.md](../docs/CHEATSHEET.md): avisa de los que faltan
+en el mapa y de los que el mapa cita y ya no existen. También lo pasa la CI.
+
 **Cuándo ejecutarlas a mano:** al tocar los instaladores (`install`,
 `actualizar`, `*/install.sh`, `*/uninstall.sh`, `lib/`). Para un cambio de config basta con
 probarla sin instalar (ver el [README](../README.md#el-flujo)) y dejar que la CI

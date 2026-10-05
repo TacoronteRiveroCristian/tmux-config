@@ -96,7 +96,7 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
 
     Espacio e             panel lateral (árbol de ficheros): abrir / ocultar
     Espacio f             mostrar en el árbol el fichero actual
-    Ctrl+P                buscar un fichero por nombre (Enter abre, Esc sale)
+    Ctrl+P  ·  Espacio p  buscar un fichero por nombre (Enter abre, Esc sale)
     Espacio g             buscar texto en el proyecto
     Espacio b  ·  r       ficheros abiertos · recientes
     gcc  ·  gc            comentar la línea · la selección
@@ -129,21 +129,23 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
 
     /texto  ·  n  ·  N    buscar · siguiente · anterior
     *                     buscar la palabra que hay bajo el cursor
+    Espacio h             quitar el resaltado de la búsqueda
     gg  ·  G  ·  :42      principio · final · línea 42
     Ctrl+O  ·  Ctrl+I     volver a donde estabas · adelante (tras gd, buscar...)
 
   Código (LSP de bash, Python, YAML, JSON, Dockerfile, Lua, Markdown):
 
     Tab                   aceptar el autocompletado (flechas eligen, Esc cierra)
-    K  ·  gd              información · ir a la definición
+    K  ·  gd              información (también Espacio ci) · ir a la definición
     ]d  ·  [d             siguiente error · anterior
-    Espacio cd            ver el error de la línea
+    Espacio cd  ·  cl     ver el error de la línea · todos los del fichero
     Espacio ca · cr · cf  arreglos rápidos · renombrar · formatear
 
   Git:
 
     ]c  ·  [c             siguiente cambio · anterior
     Espacio vp · vr · vb  ver el cambio · deshacerlo · quién cambió la línea
+    Espacio vd            comparar el fichero con la última versión
 
   En tmux, neovim es el editor por defecto: git commit, crontab -e, sudoedit...
   Ficheros del sistema: sudoedit /etc/fichero (con tu config, sin abrir el

@@ -80,7 +80,8 @@ en nvim-lspconfig y en mason (`:Mason` los lista), y `node = true` si lo
 necesita. `./install vim` lo instala.
 
 Si cambias un atajo, apúntalo en la sección "En neovim" de
-[docs/CHEATSHEET.md](../docs/CHEATSHEET.md): es lo que abre `Espacio ?`.
+[docs/CHEATSHEET.md](../docs/CHEATSHEET.md): es lo que abre `Espacio ?`. Con
+los de `Espacio`, `tests/atajos.sh` (y la CI) avisa si se te olvida.
 
 ## Solo en esta máquina
 

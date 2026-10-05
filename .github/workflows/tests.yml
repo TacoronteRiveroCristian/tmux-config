@@ -1,5 +1,6 @@
 # Las pruebas de tests/run en cada push y pull request: x86 en un runner normal y
-# las Raspberry en uno arm64 nativo (sin emular).
+# las Raspberry en uno arm64 nativo (sin emular). Y tests/atajos.sh, que tarda un
+# segundo: los atajos Espacio+tecla del código y los del CHEATSHEET cuadran.
 name: tests
 
 on:
@@ -8,6 +9,15 @@ on:
   workflow_dispatch:
 
 jobs:
+  atajos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - run: tests/atajos.sh
+
   x86:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
