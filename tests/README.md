@@ -15,7 +15,7 @@ tests/run -l               # la lista
 | `pi-trixie` | La Raspberry Pi de verdad: Raspberry Pi OS trixie arm64, con el repo de Raspberry Pi, nodejs de NodeSource y la clave caducada de `gh`. Instala lo publicado y actualiza con `git pull && ./actualizar` |
 | `pi-bookworm` | Raspberry Pi OS bookworm arm64, instalación nueva |
 | `ubuntu-server` | Ubuntu Server 24.04, con tmux, vim y bash-completion de serie (uninstall debe respetarlos) |
-| `ubuntu-2204` | Ubuntu 22.04 (node 12, sin tealdeer) |
+| `ubuntu-2204` | Ubuntu 22.04 (node 12, sin tealdeer), en español: apt cambia su salida |
 | `migracion` | La versión que enlazaba `~/.zshrc`, y `git pull && ./actualizar` |
 | `actualizar` | `./actualizar` con cambios de verdad en upstream, un paquete nuevo en la tabla y la pregunta `[S/n]` con terminal |
 

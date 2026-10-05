@@ -12,7 +12,7 @@
 #                  lo publicado y actualiza con "git pull && ./actualizar"
 #   pi-bookworm    Raspberry Pi OS bookworm arm64, instalación nueva
 #   ubuntu-server  Ubuntu 24.04 con tmux, vim y bash-completion de serie
-#   ubuntu-2204    Ubuntu 22.04 (nodejs 12, sin tealdeer)
+#   ubuntu-2204    Ubuntu 22.04 (nodejs 12, sin tealdeer), en español
 #   migracion      Debian trixie con la versión que enlazaba ~/.zshrc y
 #                  ~/.config/nvim (427d133), y "git pull && ./actualizar"
 #   actualizar     ./actualizar con cambios de verdad en upstream (Debian trixie)

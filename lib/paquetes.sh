@@ -76,10 +76,11 @@ pkg_version() {
 }
 
 # La versión que instalaría el gestor; vacío si no está en los repos activos.
-# Con apt, la de los índices que haya (tras apt-get update, la de verdad).
+# Con apt, la de los índices que haya (tras apt-get update, la de verdad). La
+# salida de apt, siempre en inglés (LC_ALL=C): en español dice "Candidato:"
 pkg_candidate() {
     case "$GESTOR" in
-        apt) version_de "$(apt-cache policy "$1" 2>/dev/null | sed -n 's/^ *Candidate: //p')" ;;
+        apt) version_de "$(LC_ALL=C apt-cache policy "$1" 2>/dev/null | sed -n 's/^ *Candidate: //p')" ;;
         dnf) version_de "$(dnf -q repoquery --latest-limit 1 --qf '%{version}' "$1" 2>/dev/null | head -n 1)" ;;
     esac
 }
@@ -90,8 +91,8 @@ pkg_candidate() {
 pkg_provee() {
     local v
     case "$GESTOR" in
-        apt) v="$(apt-cache policy "$1" 2>/dev/null | sed -n 's/^ *Candidate: //p')"
-             apt-cache show "$1=$v" 2>/dev/null | sed -n '1,/^$/s/^Provides: //p' |
+        apt) v="$(LC_ALL=C apt-cache policy "$1" 2>/dev/null | sed -n 's/^ *Candidate: //p')"
+             LC_ALL=C apt-cache show "$1=$v" 2>/dev/null | sed -n '1,/^$/s/^Provides: //p' |
                  tr ',' '\n' | awk '{print $1}' | grep -x "$2" >/dev/null ;;
         dnf) dnf -q repoquery --latest-limit 1 --provides "$1" 2>/dev/null |
                  awk '{print $1}' | grep -x "$2" >/dev/null ;;
@@ -158,7 +159,7 @@ planificar() {
     # Con apt, cuántos entrarían de verdad, con sus dependencias (simulado, sin sudo)
     if [ "$GESTOR" = apt ] && [ ${#PAQ_INSTALAR[@]} -gt 0 ]; then
         # shellcheck disable=SC2034  # lo usa ./install
-        APT_TOTAL="$(apt-get install -s --no-install-recommends "${PAQ_INSTALAR[@]}" 2>/dev/null | grep -c '^Inst' || true)"
+        APT_TOTAL="$(LC_ALL=C apt-get install -s --no-install-recommends "${PAQ_INSTALAR[@]}" 2>/dev/null | grep -c '^Inst' || true)"
     fi
 }
 

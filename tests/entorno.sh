@@ -33,6 +33,13 @@ case "$PERFIL" in
     pi-bookworm)   U=rasp3 ;;
     # Ubuntu Server trae tmux, vim y bash-completion
     ubuntu-server) apt-get -yqq install tmux vim bash-completion >/dev/null 2>&1; U=u ;;
+    # En español, como las máquinas de verdad: apt cambia su salida ("Candidato:").
+    # La imagen no instala traducciones: se quita su exclusión y se reinstala apt
+    ubuntu-2204)
+        rm -f /etc/dpkg/dpkg.cfg.d/excludes
+        apt-get -yqq install locales >/dev/null 2>&1 && apt-get -yqq install --reinstall apt >/dev/null 2>&1
+        locale-gen es_ES.UTF-8 >/dev/null && update-locale LANG=es_ES.UTF-8
+        U=u ;;
     *)             U=u ;;
 esac
 . /etc/os-release
@@ -40,10 +47,11 @@ echo "=== $PERFIL: $PRETTY_NAME ($(uname -m)), usuario $U${DESDE:+, desde $DESDE
 echo "    node $(node -v 2>/dev/null || echo -) · npm $(npm -v 2>/dev/null || echo -) · tmux previo: $(command -v tmux || echo -) · vim previo: $(command -v vim || echo -)"
 # Lo que ya estaba: uninstall no lo quita
 antes="$(dpkg-query -W -f='${Package} ${Status}\n' tmux vim nodejs bash-completion zoxide tealdeer 2>/dev/null | awk '/install ok installed/ {print $1}' | tr '\n' ' ')"
-hay_tldr=0; apt-cache policy tealdeer 2>/dev/null | grep 'Candidate: [^(]' >/dev/null && hay_tldr=1
+hay_tldr=0; LC_ALL=C apt-cache policy tealdeer 2>/dev/null | grep 'Candidate: [^(]' >/dev/null && hay_tldr=1
 
 upstream
 mkuser "$U"; H=/home/$U
+[ "$PERFIL" = ubuntu-2204 ] && check "el usuario tiene apt en español" has "Candidato:" "$(as "$U" 'apt-cache policy tmux')"
 bashfiles() { (cd "$H" && sha256sum .bashrc .profile .bash_logout .bash_profile 2>/dev/null); }
 b0="$(bashfiles)"
 clonar "$U"
