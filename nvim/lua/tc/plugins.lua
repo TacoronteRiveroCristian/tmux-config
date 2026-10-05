@@ -76,7 +76,7 @@ require('lazy').setup({
         'nvim-tree/nvim-tree.lua', commit = '531b807b8f0d6f75016a0ee1e0cd5ce2086e9d95', -- v1.18.0
         lazy = false,
         keys = {
-            { '<leader>e', function() require('nvim-tree.api').tree.toggle() end, desc = 'Árbol de ficheros' },
+            { '<leader>e', function() require('nvim-tree.api').tree.toggle() end, desc = 'Árbol de ficheros (panel lateral)' },
             { '<leader>f', function() require('nvim-tree.api').tree.find_file({ open = true, focus = true }) end, desc = 'Mostrar este fichero en el árbol' },
         },
         config = function()

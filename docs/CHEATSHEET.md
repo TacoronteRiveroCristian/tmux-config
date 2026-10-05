@@ -88,16 +88,17 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     Espacio (y esperar)   menú con todos los atajos
     Espacio ?             este mapa
     Espacio k             buscar un atajo escribiendo lo que quieres hacer
+    Ctrl+W  ·  g          (y esperar) menú de los atajos de vim que empiezan así
     para aprender         :Tutor (en inglés)
+    si no lo encuentras   este mapa → Espacio k → :help tema → pregunta a Claude
 
   Ficheros:
 
-    Espacio e             árbol de ficheros (abrir / cerrar)
+    Espacio e             panel lateral (árbol de ficheros): abrir / ocultar
     Espacio f             mostrar en el árbol el fichero actual
     Ctrl+P                buscar un fichero por nombre (Enter abre, Esc sale)
     Espacio g             buscar texto en el proyecto
     Espacio b  ·  r       ficheros abiertos · recientes
-    Ctrl+h  ·  Ctrl+l     pasar del árbol al fichero y al revés
     gcc  ·  gc            comentar la línea · la selección
     ysiw" · cs"' · ds(    rodear la palabra con " · cambiar " por ' · quitar ( )
     Espacio y             copiar al portapapeles, también por SSH
@@ -106,6 +107,30 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
 
     a crear · r renombrar · d borrar (y + Enter) · c copiar · p pegar
     x cortar · H ocultos · R refrescar · g? ayuda
+
+  Ventanas, pestañas y ficheros abiertos:
+
+    Lo que en VS Code son pestañas, en vim son los ficheros abiertos (buffers):
+    siguen abiertos aunque no se vean (Espacio b). Las pestañas de vim son otra
+    cosa: cada una guarda su propia división de la pantalla en ventanas.
+
+    Ctrl+h · j · k · l    ir a la ventana de la izquierda · abajo · arriba ·
+                          derecha (Ctrl+h y Ctrl+l: del árbol al fichero y al
+                          revés). Los panes de tmux, como el de Claude, son
+                          Alt+flechas
+    Ctrl+W v  ·  s        dividir en vertical · en horizontal
+    Ctrl+W q  ·  o        cerrar esta ventana · dejar solo esta
+    Ctrl+V · X · T        en el árbol o en Ctrl+P: abrir a la derecha · debajo ·
+                          en una pestaña nueva
+    :bn  ·  :bp  ·  :bd   fichero abierto siguiente · anterior · cerrarlo
+    gt  ·  gT  ·  :tabc   pestaña siguiente · anterior · cerrarla
+
+  Leer y moverse:
+
+    /texto  ·  n  ·  N    buscar · siguiente · anterior
+    *                     buscar la palabra que hay bajo el cursor
+    gg  ·  G  ·  :42      principio · final · línea 42
+    Ctrl+O  ·  Ctrl+I     volver a donde estabas · adelante (tras gd, buscar...)
 
   Código (LSP de bash, Python, YAML, JSON, Dockerfile, Lua, Markdown):
 
