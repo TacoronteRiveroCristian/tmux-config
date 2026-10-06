@@ -64,7 +64,8 @@ tmux new -A -s trabajo
   sin ello, con el arreglo sugerido (nunca añade repos por su cuenta). Para
   saber qué dan los repos, si va a instalar algo, antes pone al día los índices
   de apt (`apt-get update`, con sudo; no instala nada). Si va a instalar o
-  apartar algo pregunta `[S/n]`; si algo imprescindible falta
+  apartar algo pregunta `[S/n]`; si algo imprescindible falta, o apt tendría
+  que quitar un paquete que ya tienes porque choca con uno de estos
   (`BLOQUEA`), no toca nada. Al final, un resumen de lo que quedó sin instalar
   y los avisos.
 - `--check` se queda en el plan: ni sudo ni cambios. `-y` sigue sin preguntar;

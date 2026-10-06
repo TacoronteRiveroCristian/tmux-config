@@ -6,7 +6,8 @@
 #   DESDE=<commit>   instala esa versión y luego "git pull && ./actualizar",
 #                    como quien ya lo tenía; vacío: instalación nueva
 #
-# Comprueba: install/actualizar, un pane nuevo de tmux (zsh, vim = neovim del
+# Comprueba: install/actualizar, que un paquete que choca con uno del repo
+# BLOQUEA y no se quita, un pane nuevo de tmux (zsh, vim = neovim del
 # repo, z), fuera de tmux nada del repo, un .py en neovim (resaltado, pyright),
 # tldr, que bash no se toca y que uninstall no deja nada y respeta lo que ya había.
 . /tests/comun.sh
@@ -70,6 +71,18 @@ if [ -n "$DESDE" ]; then
     check "git pull && ./actualizar" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
     check "queda en lo último de main" [ "$(as "$U" "git -C $D rev-parse HEAD")" = "$(git -C /srv/src rev-parse HEAD)" ]
 else
+    # Un paquete tuyo que choca con uno del repo: apt-get -y lo quitaría sin
+    # preguntar. El plan lo para (BLOQUEA) y no se toca
+    paso "un paquete que choca con zsh"
+    mkdir -p /tmp/choca/DEBIAN
+    printf 'Package: choca-con-zsh\nVersion: 1.0\nArchitecture: all\nMaintainer: t <t@t>\nConflicts: zsh\nDescription: prueba\n' > /tmp/choca/DEBIAN/control
+    dpkg-deb -b /tmp/choca /tmp/choca.deb >/dev/null && dpkg -i /tmp/choca.deb >/dev/null
+    out="$(as "$U" "cd $D && ./install --check zsh")"; r=$?
+    echo "$out" | grep -A1 'BLOQUEA' | sangra ""
+    check "--check: BLOQUEA, apt quitaría choca-con-zsh" bash -c "[ $r -ne 0 ] && grep -q 'BLOQUEA *quitaría choca-con-zsh' <<<\"\$1\"" _ "$out"
+    out="$(as "$U" "cd $D && ./install -y zsh")"; r=$?
+    check "-y: no instala nada y choca-con-zsh sigue" bash -c "[ $r -ne 0 ] && dpkg-query -W -f='\${Status}' choca-con-zsh | grep -q 'install ok installed' && ! dpkg-query -W -f='\${Status}' zsh 2>/dev/null | grep -q 'install ok installed'"
+    dpkg --purge choca-con-zsh >/dev/null
     # Lo que cambia el sistema, para ver que --check y un install cancelado no lo tocan
     sistema() { dpkg-query -W -f='${Package} ${Status}\n' | sort; ls -A "$H"; }
     s0="$(sistema)"

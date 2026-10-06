@@ -20,7 +20,8 @@ tests/run -l               # la lista
 | `actualizar` | `./actualizar` con cambios de verdad en upstream, un paquete nuevo en la tabla y la pregunta `[S/n]` con terminal |
 
 En cada máquina comprueba que `./install --check` no toca nada, que sin
-terminal y sin `-y` no instala, que install y actualizar terminan bien (y que
+terminal y sin `-y` no instala, que un paquete tuyo que choca con uno del repo
+para el plan (`BLOQUEA`) y no se quita, que install y actualizar terminan bien (y que
 repetir no pide sudo), que un pane
 nuevo de tmux arranca zsh con `vim` = el neovim del repo y `z`, que fuera de
 tmux no hay nada del repo, que un `.py` sale con resaltado y pyright, que `tldr`

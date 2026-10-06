@@ -35,6 +35,7 @@ F_HAY=() F_TIENES=() F_EST=() F_POR=() F_VER=()
 ARREGLOS=()   # "componente<TAB>nombre en apt<TAB>gestor<TAB>orden"
 PAQ_INSTALAR=() PAQ_ACTUALIZAR=()
 APT_TOTAL=""  # con apt, los que entrarían contando sus dependencias
+APT_QUITA=()  # con apt, los que ya tienes y quitaría para instalar estos (chocan)
 
 cargar_tabla() {
     local comp="$1" linea apt dnf cmd min con sin id gestor orden
@@ -161,6 +162,12 @@ planificar() {
         # shellcheck disable=SC2034  # lo usa ./install
         APT_TOTAL="$(LC_ALL=C apt-get install -s --no-install-recommends "${PAQ_INSTALAR[@]}" 2>/dev/null | grep -c '^Inst' || true)"
     fi
+    # Y si para instalar o actualizar quitaría algún paquete que ya tienes, porque
+    # choca con uno de estos: apt-get -y lo quitaría sin preguntar
+    if [ "$GESTOR" = apt ] && [ $((${#PAQ_INSTALAR[@]} + ${#PAQ_ACTUALIZAR[@]})) -gt 0 ]; then
+        mapfile -t APT_QUITA < <(LC_ALL=C apt-get install -s --no-install-recommends \
+            ${PAQ_INSTALAR[@]+"${PAQ_INSTALAR[@]}"} ${PAQ_ACTUALIZAR[@]+"${PAQ_ACTUALIZAR[@]}"} 2>/dev/null | awk '/^Remv / {print $2}')
+    fi
 }
 
 # decidir: el estado de cada fila (F_EST, F_POR, F_VER) a partir de lo que ya
@@ -269,6 +276,18 @@ mostrar_paquetes() {
     return 0
 }
 
+# mostrar_quita: lo que apt quitaría (APT_QUITA), como BLOQUEA. Quitar un paquete
+# tuyo lo decides tú, no ./install -y
+mostrar_quita() {
+    # shellcheck disable=SC2034  # TC_COMP lo lee plan_linea
+    local TC_COMP=apt p
+    [ ${#APT_QUITA[@]} -gt 0 ] || return 0
+    p=(${PAQ_INSTALAR[@]+"${PAQ_INSTALAR[@]}"} ${PAQ_ACTUALIZAR[@]+"${PAQ_ACTUALIZAR[@]}"})
+    echo "apt"
+    plan_linea bloquea "quitaría $(lista "${APT_QUITA[@]}"), que ya tienes: choca con lo que se va a instalar" \
+        "arreglo: si puedes quitarlo, sudo apt install ${p[*]} (enseña lo que quita y pregunta), y luego ./install otra vez"
+}
+
 # aplicar_paquetes: instala y actualiza lo que decidió planificar, y apunta en el
 # estado de cada componente los que ha instalado él (./uninstall quita solo esos)
 aplicar_paquetes() {
@@ -281,8 +300,9 @@ aplicar_paquetes() {
         apt)
             # install también actualiza los que ya están. Sin recomendados: solo lo
             # imprescindible, que no cambie nada de lo que ya había (con ellos, npm
-            # traía bash-completion y build-essential)
-            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+            # traía bash-completion y build-essential). Ni quitar nada: si hiciera
+            # falta (el plan ya lo para), apt falla en vez de hacerlo sin preguntar
+            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends --no-remove \
                 ${PAQ_INSTALAR[@]+"${PAQ_INSTALAR[@]}"} ${PAQ_ACTUALIZAR[@]+"${PAQ_ACTUALIZAR[@]}"}
             ;;
         dnf)

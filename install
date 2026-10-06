@@ -78,6 +78,7 @@ for c in "${comps[@]}"; do
     # lo suyo que no son paquetes (configs que aparta, descargas...): solo mira
     "$REPO_DIR/$c/install.sh" --plan ${flags[@]+"${flags[@]}"}
 done
+mostrar_quita
 
 cuenta() { grep -c "^$1"$'\t' "$TC_PLAN" || true; }
 # n_de N COSA COSAS: "1 paquete", "3 paquetes"
