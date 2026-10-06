@@ -199,7 +199,14 @@ require('lazy').setup({
         dependencies = {
             {
                 'mason-org/mason.nvim', commit = '2a6940af80375532e5e9e7c1f2fc6319a1b7a69d', -- v2.3.1
-                opts = { install_root_dir = datos .. '/mason', ui = { border = 'rounded' } },
+                opts = {
+                    install_root_dir = datos .. '/mason',
+                    -- Las versiones de los servidores LSP, las del registro de ese día:
+                    -- las mismas en todas las máquinas. Para subirlas, otra etiqueta de
+                    -- github.com/mason-org/mason-registry/releases y ./install vim
+                    registries = { 'github:mason-org/mason-registry@2026-10-06-pricey-wrasse' },
+                    ui = { border = 'rounded' },
+                },
             },
             { 'neovim/nvim-lspconfig', commit = '4d363f93c3581b9212a24f7a830d7590b3f050af' }, -- v2.12.0
             { 'saghen/blink.cmp', commit = '78336bc89ee5365633bcf754d93df01678b5c08f' },     -- v1.10.2

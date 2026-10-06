@@ -81,6 +81,12 @@ cambia su `commit` y ejecuta `./install vim`.
 en nvim-lspconfig y en mason (`:Mason` los lista), y `node = true` si lo
 necesita. `./install vim` lo instala.
 
+**Las versiones de los servidores LSP** salen del registro de mason fijado en
+`plugins.lua` (`registries`, una etiqueta de
+[mason-registry](https://github.com/mason-org/mason-registry/releases)): son las
+mismas en todas las máquinas. Para subirlas, cambia la etiqueta y ejecuta
+`./install vim`, que deja cada servidor en la versión de ese registro.
+
 Si cambias un atajo, apúntalo en la sección "En neovim" de
 [docs/CHEATSHEET.md](../docs/CHEATSHEET.md): es lo que abre `Espacio ?`. Con
 los de `Espacio`, `tests/atajos.sh` (y la CI) avisa si se te olvida.

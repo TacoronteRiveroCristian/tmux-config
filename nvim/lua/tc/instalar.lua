@@ -1,7 +1,8 @@
 -- Instalación sin pantalla, la que lanza ./install vim:
 --   NVIM_APPNAME=tmux-config-nvim nvim --headless -u nvim/init.lua -c 'lua require("tc.instalar").lsp()'
--- Instala los servidores LSP que falten y espera a que acaben. Sale con error
--- (cquit) si alguno falla, para que ./install vim lo diga.
+-- Instala los servidores LSP que falten, o que no estén en la versión del
+-- registro fijado en plugins.lua, y espera a que acaben. Sale con error (cquit)
+-- si alguno falla, para que ./install vim lo diga.
 
 local M = {}
 
@@ -21,10 +22,11 @@ function M.lsp()
     local pendientes, resultado = {}, {}
     for _, s in ipairs(lsp.activos()) do
         local pkg = registry.get_package(s.paquete)
-        if pkg:is_installed() then
-            decir('servidor LSP ya instalado: ' .. s.paquete)
+        local tiene, quiere = pkg:get_installed_version(), pkg:get_latest_version()
+        if tiene == quiere then
+            decir('servidor LSP ya instalado: ' .. s.paquete .. ' ' .. tiene)
         else
-            decir('instalando servidor LSP: ' .. s.paquete)
+            decir((tiene and 'cambiando de versión' or 'instalando') .. ' servidor LSP: ' .. s.paquete .. ' ' .. quiere)
             table.insert(pendientes, s.paquete)
             pkg:install({}, function(ok, err)
                 resultado[s.paquete] = ok and true or tostring(err)

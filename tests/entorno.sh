@@ -7,9 +7,11 @@
 #                    como quien ya lo tenía; vacío: instalación nueva
 #
 # Comprueba: install/actualizar, que un paquete que choca con uno del repo
-# BLOQUEA y no se quita, un pane nuevo de tmux (zsh, vim = neovim del
-# repo, z), fuera de tmux nada del repo, un .py en neovim (resaltado, pyright),
-# que sudoedit no deja su historial de deshacer en el HOME, tldr, que bash no se toca y que uninstall no deja nada y respeta lo que ya había.
+# BLOQUEA y no se quita, un pane nuevo de tmux (zsh, vim = neovim del repo, z),
+# fuera de tmux nada del repo, un .py en neovim (resaltado, pyright), los
+# servidores LSP en la versión del registro fijado, que sudoedit no deja su
+# historial de deshacer en el HOME, tldr, que bash no se toca y que uninstall
+# no deja nada y respeta lo que ya había.
 . /tests/comun.sh
 PERFIL="${PERFIL:?}"; DESDE="${DESDE:-}"
 arm=0; [ "$(uname -m)" = aarch64 ] && arm=1
@@ -160,6 +162,19 @@ if [ "$PERFIL" = ubuntu-2204 ]; then
         "[ $r -eq 0 ] && grep -q 'npm (viene con nodejs)' <<<\"\$1\" && [ \"\$(node -v | sed 's/^v//; s/\\..*//')\" -ge 18 ] && command -v npm >/dev/null && ! dpkg-query -W -f='\${Status}' npm 2>/dev/null | grep -q 'install ok installed'" _ "$out"
     [ $r -eq 0 ] || echo "$out" | tail -20
 fi
+
+# Los servidores LSP, en la versión del registro fijado en plugins.lua: uno en
+# otra versión (lo instaló otro registro) vuelve a ella con ./install vim
+paso "servidores LSP en la versión del registro fijado"
+fijado="$(grep -o "mason-registry@[^']*" "$H/GitHub/personal/tmux-config/nvim/lua/tc/plugins.lua" | cut -d@ -f2)"
+mason="$H/.local/share/tmux-config-nvim/tmux-config/mason"
+check "registro de mason: el fijado (${fijado:-ninguno})" grep -q "\"version\":\"$fijado\"" "$mason/registries/github/mason-org/mason-registry/info.json"
+rec="$mason/packages/marksman/mason-receipt.json"
+v="$(grep -o 'marksman@[^"]*' "$rec" | head -1 | cut -d@ -f2)"
+sed -i "s/marksman@$v/marksman@0.0.1/g" "$rec"
+out="$(as "$U" "cd $D && ./install -y vim")"; r=$?
+grep 'marksman' <<<"$out" | sangra ""
+check "marksman en otra versión vuelve a la del registro ($v)" bash -c "[ $r -eq 0 ] && grep -q 'cambiando de versión servidor LSP: marksman $v' <<<\"\$1\" && grep -q 'marksman@$v' '$rec'" _ "$out"
 
 # sudoedit edita una copia del fichero de root en /var/tmp: su historial de
 # deshacer no debe quedarse en el HOME (el de un fichero normal, sí)
