@@ -34,7 +34,9 @@ sección "En neovim" de [docs/CHEATSHEET.md](../docs/CHEATSHEET.md#en-neovim-si-
 - Si Claude (u otro programa, desde otro pane) cambia un fichero que tienes
   abierto, neovim lo relee solo; si tú también lo habías cambiado, pregunta.
 - Deshacer se conserva al cerrar el fichero, y al reabrirlo vuelve a la línea
-  donde estabas. Al salir con cambios sin guardar, pregunta en vez de dar error.
+  donde estabas; salvo en `/tmp`, `/var/tmp` y `/dev/shm`, donde `sudoedit` deja
+  la copia del fichero de root (su historial guardaría el contenido en tu HOME).
+  Al salir con cambios sin guardar, pregunta en vez de dar error.
 - Dentro de tmux (con `./install zsh`) es el **editor por defecto**: lo que
   abren `git commit`, `crontab -e`, `sudoedit`, `systemctl edit`… Fuera de
   tmux sigue el de la distro: nano (Debian/Ubuntu) o vi (Rocky). Con `sudo`

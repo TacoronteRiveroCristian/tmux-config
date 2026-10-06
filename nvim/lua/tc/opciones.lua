@@ -23,6 +23,13 @@ o.softtabstop = 4
 o.list = true               -- ver tabuladores y espacios al final de línea
 o.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
 
+-- Deshacer no se conserva en /tmp, /var/tmp y /dev/shm: sudoedit edita ahí una
+-- copia del fichero de root, y su historial guardaría el contenido en tu HOME
+vim.api.nvim_create_autocmd('BufWritePre', {
+    pattern = { '/tmp/*', '/var/tmp/*', '/dev/shm/*' },
+    callback = function(ev) vim.bo[ev.buf].undofile = false end,
+})
+
 -- :terminal y :! con la shell de los panes de tmux (zsh con la config del repo,
 -- ZDOTDIR) y no con la de login. Solo si se abrió desde uno de esos panes.
 if vim.env.ZDOTDIR and vim.uv.fs_realpath(vim.env.ZDOTDIR .. '/.zshrc') == vim.g.tc_repo .. '/zsh/.zshrc' then

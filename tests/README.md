@@ -24,7 +24,8 @@ terminal y sin `-y` no instala, que un paquete tuyo que choca con uno del repo
 para el plan (`BLOQUEA`) y no se quita, que install y actualizar terminan bien (y que
 repetir no pide sudo), que un pane
 nuevo de tmux arranca zsh con `vim` = el neovim del repo y `z`, que fuera de
-tmux no hay nada del repo, que un `.py` sale con resaltado y pyright, que `tldr`
+tmux no hay nada del repo, que un `.py` sale con resaltado y pyright, que
+`sudoedit` no deja en el HOME el historial de deshacer de la copia, que `tldr`
 funciona, que bash no se toca, y que uninstall no deja restos y respeta lo que
 ya estaba.
 

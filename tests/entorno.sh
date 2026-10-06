@@ -9,7 +9,7 @@
 # Comprueba: install/actualizar, que un paquete que choca con uno del repo
 # BLOQUEA y no se quita, un pane nuevo de tmux (zsh, vim = neovim del
 # repo, z), fuera de tmux nada del repo, un .py en neovim (resaltado, pyright),
-# tldr, que bash no se toca y que uninstall no deja nada y respeta lo que ya había.
+# que sudoedit no deja su historial de deshacer en el HOME, tldr, que bash no se toca y que uninstall no deja nada y respeta lo que ya había.
 . /tests/comun.sh
 PERFIL="${PERFIL:?}"; DESDE="${DESDE:-}"
 arm=0; [ "$(uname -m)" = aarch64 ] && arm=1
@@ -160,6 +160,18 @@ if [ "$PERFIL" = ubuntu-2204 ]; then
         "[ $r -eq 0 ] && grep -q 'npm (viene con nodejs)' <<<\"\$1\" && [ \"\$(node -v | sed 's/^v//; s/\\..*//')\" -ge 18 ] && command -v npm >/dev/null && ! dpkg-query -W -f='\${Status}' npm 2>/dev/null | grep -q 'install ok installed'" _ "$out"
     [ $r -eq 0 ] || echo "$out" | tail -20
 fi
+
+# sudoedit edita una copia del fichero de root en /var/tmp: su historial de
+# deshacer no debe quedarse en el HOME (el de un fichero normal, sí)
+paso "deshacer y sudoedit"
+printf '#!/bin/sh\nexec env NVIM_APPNAME=tmux-config-nvim %s/.local/opt/tmux-config/bin/nvim --headless "$@" -c "normal! Gonuevo" -c wq\n' "$H" > "$H/editor"
+chmod +x "$H/editor"; echo secreto > /etc/tc-secreto; chmod 600 /etc/tc-secreto
+as "$U" 'SUDO_EDITOR=~/editor sudoedit /etc/tc-secreto; ~/editor ~/tc-control.txt' >/dev/null
+und="$H/.local/state/tmux-config-nvim/undo"
+check "sudoedit con el neovim del repo edita el fichero" grep -q nuevo /etc/tc-secreto
+check "deshacer: se guarda el de un fichero normal" bash -c "ls '$und' | grep -q tc-control"
+check "deshacer: no se guarda el de sudoedit" bash -c "! ls '$und' | grep -q '^%var%tmp%'"
+
 check "bash sin tocar tras instalar" [ "$(bashfiles)" = "$b0" ]
 
 paso "uninstall vim zsh tmux"
