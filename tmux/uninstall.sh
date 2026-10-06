@@ -4,13 +4,14 @@
 #   ./uninstall tmux
 #
 # Qué hace (enseña la lista y pide confirmación antes):
-#   1. Cierra los servidores tmux de este usuario, con todas sus sesiones.
-#   2. Quita ~/.tmux.conf y ~/.local/opt/tmux-config/bin/tmux-guia si son
+#   1. Quita ~/.tmux.conf y ~/.local/opt/tmux-config/bin/tmux-guia si son
 #      enlaces a este repo (si son otra cosa, no los toca), y ~/.local/bin/tmux-guia
 #      si lo es (lo enlazaba la versión anterior).
-#   3. Desinstala el paquete tmux si lo instaló ./install tmux (apuntado en
+#   2. Desinstala el paquete tmux si lo instaló ./install tmux (apuntado en
 #      ~/.local/state/tmux-config/tmux.paquetes); el que ya estaba, no. apt/dnf
 #      enseña qué más se quita y vuelve a pedir confirmación.
+# No cierra los servidores tmux en marcha (ni lo que corre dentro): siguen con
+# sus sesiones y la config que cargaron hasta que los cierres.
 # No borra los backups ~/.tmux.conf.bak.* que dejó tmux/install.sh.
 set -euo pipefail
 
@@ -22,9 +23,6 @@ GUIA_SRC="$REPO_DIR/bin/tmux-guia"
 . "$REPO_DIR/lib/comun.sh"
 GUIA_DST="$TC_DIR/bin/tmux-guia"
 GUIA_VIEJO="$HOME/.local/bin/tmux-guia"   # donde la enlazaba la versión anterior
-
-# Cerrar tmux cerraría también la terminal desde la que corre este script
-[ -z "${TMUX:-}" ] || die "estás dentro de tmux: ejecútalo desde una terminal fuera de tmux"
 
 # sudo solo para el gestor de paquetes, y solo si no somos root
 SUDO=""
@@ -43,27 +41,18 @@ conf_is_ours() { [ -L "$CONF_DST" ] && [ "$(readlink "$CONF_DST")" = "$CONF_SRC"
 guia_is_ours() { [ -L "$GUIA_DST" ] && [ "$(readlink "$GUIA_DST")" = "$GUIA_SRC" ]; }
 guia_vieja_is_ours() { [ -L "$GUIA_VIEJO" ] && [ "$(readlink "$GUIA_VIEJO")" = "$GUIA_SRC" ]; }
 
-# Servidores tmux vivos de este usuario (los sockets muertos se ignoran)
-sockets=()
-sock_dir="${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)"
-if command -v tmux >/dev/null && [ -d "$sock_dir" ]; then
-    for s in "$sock_dir"/*; do
-        [ -S "$s" ] && tmux -S "$s" ls >/dev/null 2>&1 && sockets+=("$s")
-    done
-fi
+# Servidores tmux en marcha de este usuario: no se cierran, solo se avisa (antes
+# de quitar el paquete, que se lleva el comando tmux)
+vivos="$(tmux_sockets | wc -l)"
 
 # --- Resumen y confirmación ---------------------------------------------------
 
-if [ ${#sockets[@]} -eq 0 ] && ! conf_is_ours && ! guia_is_ours && ! guia_vieja_is_ours && ! tmux_nuestro; then
+if ! conf_is_ours && ! guia_is_ours && ! guia_vieja_is_ours && ! tmux_nuestro; then
     info "nada que desinstalar"
     exit 0
 fi
 
 echo "Se va a:"
-for s in "${sockets[@]}"; do
-    echo "  - cerrar el servidor tmux '$(basename "$s")' y sus sesiones:"
-    tmux -S "$s" ls | sed 's/^/      /'
-done
 conf_is_ours && echo "  - quitar el enlace ~/.tmux.conf -> $CONF_SRC"
 guia_is_ours && echo "  - quitar el enlace ~/.local/opt/tmux-config/bin/tmux-guia -> $GUIA_SRC"
 guia_vieja_is_ours && echo "  - quitar el enlace ~/.local/bin/tmux-guia -> $GUIA_SRC"
@@ -73,11 +62,6 @@ read -r -p "¿Continuar? [s/N] " answer
 [[ "$answer" =~ ^[sS]$ ]] || { info "cancelado, no se ha tocado nada"; exit 0; }
 
 # --- Desinstalar ----------------------------------------------------------------
-
-for s in "${sockets[@]}"; do
-    tmux -S "$s" kill-server
-    info "servidor tmux '$(basename "$s")' cerrado"
-done
 
 if conf_is_ours; then
     rm "$CONF_DST"
@@ -120,5 +104,6 @@ elif pkg_installed tmux; then
     info "el paquete tmux se queda: no lo instaló ./install tmux (ya estaba, o lo instaló una versión anterior, que no lo apuntaba). Para quitarlo: $quitar"
 fi
 
+[ "$vivos" -eq 0 ] || info "los tmux en marcha ($vivos) siguen abiertos, con sus sesiones y la config que cargaron, hasta que los cierres"
 ls "$HOME"/.tmux.conf.bak.* >/dev/null 2>&1 && info "backups de configs anteriores (no se tocan): $(ls "$HOME"/.tmux.conf.bak.*)"
 info "listo"

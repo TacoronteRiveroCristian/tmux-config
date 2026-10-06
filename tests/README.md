@@ -27,8 +27,8 @@ el neovim del repo y `z`, que fuera de tmux no hay nada del repo, que un `.py`
 sale con resaltado y pyright, que los servidores LSP están en la versión del
 registro de mason fijado (y que uno en otra versión vuelve a ella), que
 `sudoedit` no deja en el HOME el historial de deshacer de la copia, que `tldr`
-funciona, que bash no se toca, y que uninstall no deja restos y respeta lo que
-ya estaba.
+funciona, que bash no se toca, y que uninstall no deja restos, respeta lo que
+ya estaba y no cierra un tmux abierto.
 
 Necesita Docker y red. En x86 las Raspberry van emuladas
 (`docker run --privileged --rm tonistiigi/binfmt --install arm64`); si no se

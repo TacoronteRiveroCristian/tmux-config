@@ -11,7 +11,7 @@
 # fuera de tmux nada del repo, un .py en neovim (resaltado, pyright), los
 # servidores LSP en la versión del registro fijado, que sudoedit no deja su
 # historial de deshacer en el HOME, tldr, que bash no se toca y que uninstall
-# no deja nada y respeta lo que ya había.
+# no deja nada, respeta lo que ya había y no cierra un tmux abierto.
 . /tests/comun.sh
 PERFIL="${PERFIL:?}"; DESDE="${DESDE:-}"
 arm=0; [ "$(uname -m)" = aarch64 ] && arm=1
@@ -189,12 +189,17 @@ check "deshacer: no se guarda el de sudoedit" bash -c "! ls '$und' | grep -q '^%
 
 check "bash sin tocar tras instalar" [ "$(bashfiles)" = "$b0" ]
 
-paso "uninstall vim zsh tmux"
+paso "uninstall vim zsh tmux, con un tmux abierto"
+# Con una sesión abierta, como en un servidor con trabajos dentro: no se cierra
+as "$U" 'tmux new-session -d -s abierta' >/dev/null
+tpid="$(as "$U" 'tmux display -p "#{pid}"')"
 for c in vim zsh tmux; do
     out="$(printf 's\nY\n' | as "$U" "cd $D && ./uninstall $c")"; r=$?
     check "uninstall $c" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -15
     [ "$c" = tmux ] && out_tmux="$out"
 done
+check "uninstall tmux no cierra el tmux abierto, y lo dice" bash -c "kill -0 '$tpid' && grep -q 'siguen abiertos' <<<\"\$1\"" _ "$out_tmux"
+kill "$tpid" 2>/dev/null
 check "sin restos en ~/.local/opt/tmux-config" bash -c "[ -z \"\$(find $H/.local/opt/tmux-config -not -type d 2>/dev/null)\" ]"
 check "sin ~/.tmux.conf ni config de neovim del repo" bash -c "[ ! -L $H/.tmux.conf ] && [ ! -e $H/.config/tmux-config-nvim/init.lua ]"
 for pk in $antes; do

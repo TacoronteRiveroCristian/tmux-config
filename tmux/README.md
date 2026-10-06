@@ -78,13 +78,16 @@ Si existe `/etc/tmux.conf`, el plan lo avisa: tmux lo carga antes que `~/.tmux.c
 
 ## Lo que hace `./uninstall tmux`
 
-Se ejecuta **fuera de tmux**. Enseña la lista y pide confirmación antes de:
+Enseña la lista y pide confirmación antes de:
 
-1. Cerrar los servidores tmux de tu usuario, con todas sus sesiones.
-2. Quitar `~/.tmux.conf` y `tmux-guia`, solo si son enlaces a este repo
+1. Quitar `~/.tmux.conf` y `tmux-guia`, solo si son enlaces a este repo
    (también el `~/.local/bin/tmux-guia` de la versión anterior).
-3. Desinstalar el paquete tmux, solo si lo instaló `./install tmux`. apt/dnf
+2. Desinstalar el paquete tmux, solo si lo instaló `./install tmux`. apt/dnf
    vuelve a confirmar y enseña qué más se quita.
+
+No cierra los tmux en marcha, ni lo que corre dentro: siguen con sus sesiones y
+la config que cargaron hasta que los cierres. Se puede ejecutar desde dentro de
+tmux.
 
 El tmux que ya estaba se queda (Ubuntu Server lo trae de serie). También el
 que instaló una versión del repo anterior a octubre de 2026, que no lo
