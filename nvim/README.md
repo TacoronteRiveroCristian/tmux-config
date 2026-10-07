@@ -176,4 +176,5 @@ líneas, o repetido): lo de debajo nunca se pierde.
 ## Lo que hace `./uninstall vim`
 
 Quita los enlaces, el neovim oficial, los plugins, los servidores, el bloque de
-`~/.bashrc` (con `--global`) y solo los paquetes que instaló él. Tu `local.lua` y el historial de deshacer se quedan.
+`~/.bashrc` (con `--global`) y solo los paquetes que instaló él. Tu `local.lua`
+y el historial de deshacer se quedan.

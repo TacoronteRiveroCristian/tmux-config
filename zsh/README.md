@@ -62,6 +62,15 @@ solo vale en un servidor: tokens, rutas, alias de ese servidor. El repo es
 público, así que un secreto nunca va en `.zshrc`. Al cargarse el último, puede
 cambiar cualquier cosa del `.zshrc` (por ejemplo, `export EDITOR=nano`).
 
+**Tus alias, con zsh global.** Con `--global`, zsh es también tu shell fuera de
+tmux, así que `~/.bashrc` (que solo lee bash) deja de usarse al entrar. Tus
+alias, funciones y variables van aquí, o en `.zshrc` si valen para todas las
+máquinas. Casi todo lo de bash sirve tal cual (`alias`, `export`, funciones);
+lo que es solo de bash (`shopt`, `PROMPT_COMMAND`, `complete`, `bind`) no. Las
+variables de `~/.profile` sí llegan: `zsh/zshenv` lo carga al entrar. Lo que
+algunas herramientas añaden a `~/.bashrc` (nvm, conda, pyenv) necesita aquí su
+línea para zsh.
+
 ## Probar y aplicar
 
 ```bash
@@ -90,7 +99,8 @@ Se puede ejecutar tantas veces como se quiera:
    enlaza nada.
 4. Enlaza `~/.local/opt/tmux-config/zsh/.zshrc` a este repo: los panes de tmux
    arrancan zsh con `ZDOTDIR` en ese directorio. `~/.zshrc` no se toca, así que
-   `zsh` tecleado fuera de tmux carga el tuyo (o ninguno), no el del repo.
+   `zsh` tecleado fuera de tmux carga el tuyo (o ninguno), no el del repo;
+   salvo con `--global` (abajo).
 
 Si tmux ya está en marcha, los panes nuevos arrancan en zsh directamente; los
 que ya estaban abiertos siguen en su shell.
@@ -121,7 +131,9 @@ apuntado y `./actualizar` lo mantiene. Con `--global`:
 
 `--solo-tmux` y `./uninstall zsh` lo deshacen: vuelve tu shell de antes y tu
 `~/.zshenv`. Para volver a bash, usa `--solo-tmux` y no `chsh`: con zsh global
-apuntado, el siguiente `./actualizar -y` volvería a poner zsh. Para neovim, vi y vim fuera de tmux: `./install vim --global`
+apuntado, el siguiente `./actualizar -y` volvería a poner zsh.
+
+Para neovim, vi y vim fuera de tmux: `./install vim --global`
 ([nvim/](../nvim/README.md#también-fuera-de-tmux---global)).
 
 En imágenes mínimas de Debian/Ubuntu (Docker, cloud minimal) no se instala
@@ -133,6 +145,7 @@ caso `Ctrl+R` es el de zsh, sin fzf, y `./install zsh` lo avisa.
 Con `--global`, primero te devuelve tu shell de login de antes y quita
 `~/.zshenv`. Luego quita el enlace (y el `~/.zshrc` enlazado de la versión
 anterior), devuelve los panes nuevos de los tmux en marcha a la shell de login
-y desinstala **solo los paquetes que instaló `./install zsh`**. zsh se queda si es la shell de login de
-algún usuario, porque sin ella no podría entrar. Si quita `tealdeer`, borra
-también sus páginas. El historial y las carpetas que aprendió zoxide se quedan.
+y desinstala **solo los paquetes que instaló `./install zsh`**. zsh se queda
+si es la shell de login de algún usuario, porque sin ella no podría entrar. Si
+quita `tealdeer`, borra también sus páginas. El historial y las carpetas que
+aprendió zoxide se quedan.

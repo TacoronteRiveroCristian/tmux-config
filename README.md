@@ -57,7 +57,8 @@ tmux new -A -s trabajo
 ```
 
 La primera vez, con terminal, `./install` pregunta si zsh y vim van solo dentro
-de tmux o también fuera: [dentro de tmux o también fuera](#dentro-de-tmux-o-también-fuera).
+de tmux o también fuera: [dentro de tmux o también
+fuera](#dentro-de-tmux-o-también-fuera).
 
 | Componente | Qué pone | Detalles |
 |---|---|---|
@@ -118,8 +119,9 @@ como `cambiar` y pide confirmación.
 
 `--solo-tmux` y `./uninstall` lo deshacen: vuelve tu shell de login de antes,
 se quita `~/.zshenv` (vuelve el tuyo, si lo había) y `~/.bashrc` queda como
-estaba. Con zsh global, tu `~/.zshrc` ya no se lee: lo de una sola máquina va
-en `~/.zshrc.local`.
+estaba. Con zsh global, al entrar ya no se leen tu `~/.zshrc` ni tu
+`~/.bashrc`: tus alias y lo de una sola máquina van en `~/.zshrc.local`
+([zsh/](zsh/README.md#solo-en-esta-máquina-zshrclocal)).
 
 ## Personalizar
 
