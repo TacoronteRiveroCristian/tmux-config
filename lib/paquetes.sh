@@ -1,8 +1,9 @@
 # shellcheck shell=bash
 # lib/paquetes.sh — los paquetes de apt/dnf que pone ./install, sacados de la
 # tabla de cada componente (<componente>/paquetes). planificar decide qué hay,
-# qué falta, qué no se puede instalar y qué se pierde sin ello, sin tocar nada
-# (salvo apt-get update); mostrar_paquetes lo enseña y aplicar_paquetes lo hace.
+# qué falta, qué no se puede instalar, qué se pierde sin ello y si apt quitaría
+# algo que ya tienes, sin tocar nada (salvo apt-get update); mostrar_paquetes y
+# mostrar_quita lo enseñan y aplicar_paquetes lo hace.
 # Lo carga ./install tras lib/comun.sh, y usa sus CHECK, SI (-y) y ACTUALIZAR.
 #
 # La tabla, una fila por paquete (# empieza un comentario):

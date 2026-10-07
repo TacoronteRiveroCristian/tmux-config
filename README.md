@@ -81,7 +81,8 @@ tmux new -A -s trabajo
   el pull trae un paquete nuevo. Si hay cambios locales que chocan con el
   pull, no instala nada.
 - `./uninstall <componente>` enseña lo que va a hacer y pide confirmación.
-  Solo quita los paquetes que instaló él; los que ya estaban, no.
+  Solo quita los paquetes que instaló él; los que ya estaban, no. No cierra
+  los tmux en marcha: siguen con sus sesiones hasta que los cierres.
 - Los paquetes de apt/dnf son de todo el sistema. Con apt se instalan sin
   recomendados; con dnf entran sus dependencias débiles, como siempre en Rocky.
 

@@ -128,6 +128,7 @@ Se puede ejecutar tantas veces como se quiera:
    `vimdiff` en `~/.local/opt/tmux-config/bin`. Las distros traen de la 0.6 a
    la 0.10, demasiado antiguas para estos plugins. Hay build para x86_64 y arm64.
 3. Descarga los plugins y los servidores LSP en `~/.local/share/tmux-config-nvim`,
+   cada uno en su versión fijada (un servidor que ya estaba en otra, lo cambia),
    comprueba que todo carga y enlaza `~/.config/tmux-config-nvim/init.lua`.
 4. No toca la config de bash: neovim es el editor por defecto porque
    `zsh/.zshrc` lo pone. Sin `./install zsh`, lo avisa. Para otro editor,
@@ -135,7 +136,8 @@ Se puede ejecutar tantas veces como se quiera:
    es vi ni vim, el plan lo avisa: git lo usa antes que `EDITOR`.
 
 La primera vez descarga unos cientos de MB (node, plugins, servidores LSP) y
-tarda varios minutos; las siguientes no descarga nada.
+tarda varios minutos; las siguientes no descarga nada, salvo lo que cambie de
+versión (el commit de un plugin o el registro de mason).
 
 Los servidores LSP de node (bash, Python, YAML, JSON, Dockerfile) necesitan
 node 18 o superior: Debian 12/13 y Ubuntu 24.04 sí. Ubuntu 22.04 trae el 12 y
