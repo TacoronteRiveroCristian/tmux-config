@@ -6,13 +6,19 @@
 #   ./install zsh --actualizar      además, actualizar sus paquetes
 #   ./install --check tmux zsh vim  solo el plan: no toca nada ni usa sudo
 #   ./install -y tmux zsh vim       sin preguntar (sin terminal, hace falta)
+#   ./install --global zsh vim      zsh y vim también fuera de tmux
+#   ./install --solo-tmux zsh vim   zsh y vim solo dentro de tmux (lo de siempre)
 #   ./install                       lista los componentes
 #
+# zsh y vim van solo dentro de tmux, salvo con --global: zsh pasa a ser tu shell
+# de login y neovim entra en ~/.bashrc. Sin --global ni --solo-tmux sigue lo que
+# ya tenían; la primera vez, con terminal, lo pregunta.
+#
 # Primero enseña el plan: lo que ya está, los paquetes que instalaría (con
-# sudo), las configs tuyas que apartaría, lo que no se puede instalar y qué se
-# pierde sin ello. Si instala o aparta algo, pregunta antes [S/n]; si algo lo
-# impide (BLOQUEA), no toca nada. Al final, un resumen con lo que quedó sin
-# instalar y los avisos.
+# sudo), las configs tuyas que apartaría, lo que cambiaría fuera de tmux, lo que
+# no se puede instalar y qué se pierde sin ello. Si instala, aparta o cambia
+# algo, pregunta antes [S/n]; si algo lo impide (BLOQUEA), no toca nada. Al
+# final, un resumen con lo que quedó sin instalar y los avisos.
 #
 # Cada componente es un directorio con install.sh, uninstall.sh y su tabla de
 # paquetes (lib/paquetes.sh). Se pueden ejecutar tantas veces como se quiera.
@@ -31,7 +37,7 @@ componentes() {
 
 uso() {
     local c
-    echo "uso: ./$ACCION <componente>...$([ "$ACCION" = install ] && echo ' [--actualizar] [--check] [-y]')"
+    echo "uso: ./$ACCION <componente>...$([ "$ACCION" = install ] && echo ' [--actualizar] [--check] [-y] [--global|--solo-tmux]')"
     echo
     echo "Componentes:"
     for c in $(componentes); do
@@ -40,13 +46,19 @@ uso() {
     done
 }
 
-comps=() flags=() CHECK=0 SI=0
+comps=() flags=() CHECK=0 SI=0 SITIO=""
 for a in "$@"; do
     case "$a" in
         -h|--help)    uso; exit 0 ;;
-        --actualizar|--check|-y|--yes)
+        --actualizar|--check|-y|--yes|--global|--solo-tmux)
                       [ "$ACCION" = install ] || die "$ACCION no admite $a"
-                      case "$a" in --actualizar) flags+=("$a") ;; --check) CHECK=1 ;; *) SI=1 ;; esac ;;
+                      case "$a" in
+                          --actualizar) flags+=("$a") ;;
+                          --check)      CHECK=1 ;;
+                          --global)     [ "$SITIO" != tmux ] || die "--global y --solo-tmux a la vez"; SITIO=global ;;
+                          --solo-tmux)  [ "$SITIO" != global ] || die "--global y --solo-tmux a la vez"; SITIO=tmux ;;
+                          *)            SI=1 ;;
+                      esac ;;
         -*)           uso >&2; exit 2 ;;
         *)            [ -f "$REPO_DIR/$a/$ACCION.sh" ] || die "componente desconocido: $a (./$ACCION para ver la lista)"
                       comps+=("$a") ;;
@@ -61,6 +73,31 @@ if [ "$ACCION" = uninstall ]; then
     done
     exit 0
 fi
+
+# --- Dónde: zsh y vim, solo dentro de tmux o también fuera -----------------------
+#
+# --global o --solo-tmux; si no, lo que ya tenían (apuntado por su install.sh).
+# Si se instalan por primera vez, con terminal y sin -y ni --check, se pregunta;
+# si no, solo dentro de tmux. Sus install.sh lo leen de TC_SITIO_<componente>.
+for c in "${comps[@]}"; do
+    case "$c" in
+        zsh) q="zsh: ¿solo en los panes de tmux, o también al entrar por SSH (pasa a ser tu shell de login)?" ;;
+        vim) q="vim: ¿nvim, vi, vim y EDITOR solo dentro de tmux, o también fuera (un bloque en ~/.bashrc)?" ;;
+        *)   continue ;;
+    esac
+    s="$SITIO"
+    if [ -z "$s" ]; then
+        if es_global "$c"; then
+            s=global
+        elif ! instalado "$c" && [ "$CHECK" -eq 0 ] && [ "$SI" -eq 0 ] && [ -t 0 ]; then
+            read -r -p "$q [T]mux/[g]lobal: " r || r=""   # Ctrl+D: tmux
+            case "${r,,}" in g|global) s=global ;; *) s=tmux ;; esac
+        else
+            s=tmux
+        fi
+    fi
+    export "TC_SITIO_$c=$s"
+done
 
 # --- Plan -----------------------------------------------------------------------
 
@@ -98,6 +135,8 @@ fi
 [ ${#PAQ_ACTUALIZAR[@]} -eq 0 ] || cambios+=("actualizar con sudo $(n_de ${#PAQ_ACTUALIZAR[@]} paquete paquetes)")
 n="$(cuenta backup)"
 [ "$n" -eq 0 ] || cambios+=("apartar $(n_de "$n" "config tuya" "configs tuyas") (*.bak.<fecha>)")
+n="$(cuenta cambiar)"
+[ "$n" -eq 0 ] || cambios+=("hacer $(n_de "$n" "cambio" "cambios") fuera de tmux")
 haria="$(printf '%s · ' ${cambios[@]+"${cambios[@]}"})"; haria="${haria% · }"
 
 if [ "$CHECK" -eq 1 ]; then

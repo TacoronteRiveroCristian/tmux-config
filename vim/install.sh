@@ -4,10 +4,13 @@
 # Se lanza desde la raíz del repo y se puede ejecutar tantas veces como se quiera:
 #   ./install vim               instalar lo que falte (sudo solo si falta algo) y enlazar
 #   ./install vim --actualizar  además, actualizar los paquetes a la última versión de la distro
+#   ./install vim --global      también fuera de tmux (un bloque en ~/.bashrc)
+#   ./install vim --solo-tmux   solo dentro de tmux (lo de siempre)
 #
-# Fuera de tmux no cambia nada: los comandos quedan en ~/.local/opt/tmux-config/bin,
-# que solo está en el PATH de los panes, y la config de neovim va aparte
-# (NVIM_APPNAME=tmux-config-nvim), sin tocar ~/.config/nvim ni el vi de la distro.
+# Sin --global, fuera de tmux no cambia nada: los comandos quedan en
+# ~/.local/opt/tmux-config/bin, que solo está en el PATH de los panes, y la
+# config de neovim va aparte (NVIM_APPNAME=tmux-config-nvim), sin tocar
+# ~/.config/nvim ni el vi de la distro.
 #
 # Qué hace:
 #   1. Lo que usa neovim de apt/dnf (tabla vim/paquetes: git, curl, unzip,
@@ -27,6 +30,10 @@
 #   4. neovim queda como editor por defecto (EDITOR y VISUAL: git commit,
 #      crontab -e, sudoedit...) dentro de tmux: lo pone zsh/.zshrc. Fuera de
 #      tmux sigue el de la distro; bash no se toca.
+#      Con --global, también fuera: un bloque al final de ~/.bashrc pone ese
+#      PATH, NVIM_APPNAME y EDITOR en bash (y zsh/.zshrc, en el zsh de fuera),
+#      apuntado en ~/.local/state/tmux-config/vim.global. --solo-tmux lo quita
+#      y deja ~/.bashrc como estaba.
 #   5. Quita lo que dejó en $HOME la versión anterior (~/.vimrc,
 #      ~/.config/nvim/init.lua, ~/.local/bin/nvim y su neovim, sus plugins) y
 #      devuelve a su sitio tus configs de antes (los backups *.bak.<fecha>).
@@ -49,6 +56,7 @@ NVIM_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/$NVIM_APPNAME"
 NVIM_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/$NVIM_APPNAME"
 NVIM_DIR="$TC_DIR/nvim-$NVIM_VERSION"
 NVIM_LINK="$TC_DIR/bin/nvim"
+SITIO="$(sitio vim)"   # tmux o global: lo decide ./install
 
 # Lo de la versión anterior del repo, en $HOME (se quita en migrar)
 VIEJO_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
@@ -66,6 +74,9 @@ for a in "$@"; do
     esac
 done
 
+# Hay neovim oficial para esta arquitectura
+arch_con_nvim() { case "$(uname -m)" in x86_64|aarch64|arm64) return 0 ;; *) return 1 ;; esac; }
+
 # Lo de este componente en el plan de ./install, sin tocar nada
 plan() {
     local ed
@@ -80,6 +91,23 @@ plan() {
     esac
     if { [ -e "$NVIM_CONF/init.lua" ] || [ -L "$NVIM_CONF/init.lua" ]; } && ! link_is_ours "$INIT_SRC" "$NVIM_CONF/init.lua"; then
         plan_linea backup "${NVIM_CONF/#$HOME/\~}/init.lua no es de este repo: se guarda como init.lua.bak.<fecha>"
+    fi
+    # Fuera de tmux (--global): el bloque de ~/.bashrc. Sin neovim para esta
+    # arquitectura no se pone (ya lo dice la línea de neovim)
+    if [ "$SITIO" = global ] && ! arch_con_nvim; then
+        :
+    elif [ "$SITIO" = global ] && [ -L "$BASHRC" ]; then
+        plan_linea aviso "${BASHRC/#$HOME/\~} es un enlace ($(readlink "$BASHRC")): no se toca, y neovim sigue solo dentro de tmux"
+    elif [ "$(estado_bloque)" = 2 ] && { [ "$SITIO" = global ] || es_global vim; }; then
+        plan_linea aviso "el bloque de tmux-config en ~/.bashrc está tocado a mano (le falta \"$BLOQUE_INI\" o \"$BLOQUE_FIN\", o está repetido): no se toca"
+    elif [ "$SITIO" = global ] && [ "$(bloque_actual)" = "$(texto_bloque)" ]; then
+        plan_linea ya "neovim también fuera de tmux (bloque en ~/.bashrc)"
+    elif [ "$SITIO" = global ] && hay_bloque; then
+        plan_linea cambiar "${BASHRC/#$HOME/\~}: se pone al día el bloque de tmux-config (neovim también fuera de tmux)"
+    elif [ "$SITIO" = global ]; then
+        plan_linea cambiar "${BASHRC/#$HOME/\~}: un bloque al final para que nvim, vi, vim y EDITOR sean este neovim también fuera de tmux (para quitarlo: ./install vim --solo-tmux)"
+    elif hay_bloque; then
+        plan_linea cambiar "${BASHRC/#$HOME/\~}: se quita el bloque de tmux-config (neovim, solo dentro de tmux)"
     fi
     # git usa su core.editor antes que EDITOR; vi o vim, dentro de tmux, son este neovim
     ed="$(git config --global --get core.editor 2>/dev/null || true)"
@@ -249,6 +277,39 @@ bash_completion_heredado() {
         END { exit !f }'
 }
 
+# --global: el bloque de ~/.bashrc (texto_bloque, de lib/comun.sh) con el PATH
+# de los comandos, NVIM_APPNAME y EDITOR, solo en bash interactivo ("ssh host
+# comando" y los scripts, igual), y vim.global, que zsh/.zshrc mira para hacer
+# lo mismo en el zsh de fuera. --solo-tmux: lo quita.
+TOCADO="el bloque de tmux-config en ~/.bashrc está tocado a mano (le falta \"$BLOQUE_INI\" o \"$BLOQUE_FIN\", o está repetido): no se toca"
+fuera() {
+    if [ "$SITIO" != global ]; then
+        if hay_bloque || es_global vim; then
+            if quitar_bloque; then
+                info "quitado el bloque de ~/.bashrc: neovim, solo dentro de tmux"
+            else
+                aviso "$TOCADO; quítalo a mano"
+            fi
+            rm -f "$(global_file vim)"
+        fi
+        return 0
+    fi
+    if [ -L "$BASHRC" ]; then
+        aviso "${BASHRC/#$HOME/\~} es un enlace ($(readlink "$BASHRC")): no se toca, y neovim sigue solo dentro de tmux"
+        return 0
+    fi
+    [ "$NVIM_OK" -eq 1 ] || return 0   # sin neovim para esta arquitectura, nada que poner
+    if [ "$(bloque_actual)" != "$(texto_bloque)" ]; then
+        if ! poner_bloque; then
+            aviso "$TOCADO; arréglalo o quítalo, y vuelve a ./install vim --global"
+            return 0
+        fi
+        info "bloque al final de ~/.bashrc: nvim, vi, vim y EDITOR son este neovim también fuera de tmux (en las sesiones nuevas)"
+    fi
+    mkdir -p "$STATE_DIR"
+    : > "$(global_file vim)"
+}
+
 # EDITOR lo pone zsh/.zshrc: aquí solo se comprueba que va a llegar
 editor_nvim() {
     # ~/.zshrc enlazado es el de la versión anterior: .tmux.conf lo sigue usando
@@ -276,6 +337,7 @@ if [ "$NVIM_OK" -eq 1 ]; then
     link_with_backup "$INIT_SRC" "$NVIM_CONF/init.lua"
     link_bin
 fi
+fuera
 migrar
 [ "$NVIM_OK" -eq 0 ] || editor_nvim
 

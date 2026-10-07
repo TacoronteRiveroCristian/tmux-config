@@ -36,7 +36,7 @@ hay ninguna sesión.
 Lo configurado solo existe aquí dentro: zsh con su config en los panes, neovim
 al escribir vi o vim (y en git commit, crontab -e, sudoedit) y tmux-guia (estos
 dos, en los panes con zsh). Fuera de tmux el servidor sigue exactamente como
-estaba.
+estaba, salvo que lo instalaras con --global (README del repo).
 
 ## 3. Dos tipos de atajo
 
@@ -145,7 +145,9 @@ La configuración no se aplica
     Si has cambiado .tmux.conf: Ctrl+B R para recargar.
 
 Fuera de tmux no tengo mi zsh, ni neovim, ni tmux-guia
-    Es a propósito: solo existen dentro de tmux. Entra con tmux new -A -s trabajo.
+    Es lo de por defecto: solo existen dentro de tmux. Entra con
+    tmux new -A -s trabajo. Para tenerlos también fuera:
+    ./install --global zsh vim (en la carpeta del repo).
 
 ## 11. Más ayuda
 

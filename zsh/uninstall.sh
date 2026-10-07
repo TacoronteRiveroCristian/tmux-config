@@ -7,9 +7,11 @@
 #   1. Quita ~/.local/opt/tmux-config/zsh/.zshrc si es un enlace a este repo, y
 #      ~/.zshrc si lo es (lo enlazaba la versión anterior); si es otra cosa, no
 #      la toca.
-#   2. En los tmux en marcha de este usuario, los panes nuevos vuelven a la
+#   2. Con --global: tu shell de login vuelve a ser la de antes y quita el
+#      enlace ~/.zshenv (vuelve el tuyo, si había un backup).
+#   3. En los tmux en marcha de este usuario, los panes nuevos vuelven a la
 #      shell de login.
-#   3. Desinstala los paquetes que instaló ./install zsh (los apuntados en
+#   4. Desinstala los paquetes que instaló ./install zsh (los apuntados en
 #      ~/.local/state/tmux-config/zsh.paquetes); los que ya estaban, no.
 #      zsh se queda si es la shell de login de algún usuario: sin ella no
 #      podría entrar. apt/dnf enseña qué más se quita y vuelve a confirmar.
@@ -22,10 +24,16 @@ CONF_SRC="$REPO_DIR/zsh/.zshrc"
 
 . "$REPO_DIR/lib/comun.sh"
 CONF_DIR="$TC_DIR/zsh"
+ZSHENV="$HOME/.zshenv"
 TLDR_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/tealdeer"
 
-# Usuarios con zsh como shell de login
-login_zsh() { getent passwd | awk -F: '$7 ~ /\/zsh$/ { print $1 }'; }
+# Con --global: la shell de login de antes, si hay que devolverla (si ya era
+# zsh antes de --global, no hay nada que devolver)
+prev=""
+if es_global zsh && [[ "$(shell_login)" == */zsh ]]; then prev="$(cat "$(global_file zsh)")"; fi
+
+# Usuarios con zsh como shell de login (tú no, si se te devuelve la de antes)
+login_zsh() { getent passwd | awk -F: -v yo="$(id -un)" -v vuelve="$prev" '$7 ~ /\/zsh$/ && !(vuelve != "" && $1 == yo) { print $1 }'; }
 
 # Servidores tmux con los panes en zsh (default-command lo pone .tmux.conf)
 sockets=()
@@ -61,13 +69,20 @@ if [ -d "$CONF_DIR" ]; then
     fi
 fi
 
-if [ ${#enlaces[@]} -eq 0 ] && [ "$viejo" -eq 0 ] && [ "$quitar_dir" -eq 0 ] && [ ${#sockets[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ]; then
+# ~/.zshenv de --global, también si es de otro clon del repo
+zshenv=0
+es_del_repo "$ZSHENV" zsh/zshenv && zshenv=1
+
+if [ ${#enlaces[@]} -eq 0 ] && [ "$viejo" -eq 0 ] && [ "$quitar_dir" -eq 0 ] && [ ${#sockets[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ] &&
+   [ -z "$prev" ] && [ "$zshenv" -eq 0 ] && ! es_global zsh; then
     info "nada que desinstalar"
     [ ${#conservar[@]} -eq 0 ] || info "zsh se queda: es la shell de login de: $usuarios"
     exit 0
 fi
 
 echo "Se va a:"
+[ -z "$prev" ] || echo "  - devolverte tu shell de login de antes: $prev (zsh lo era por --global)"
+[ "$zshenv" -eq 0 ] || echo "  - quitar el enlace ~/.zshenv -> $(readlink "$ZSHENV") y devolver el tuyo, si hay un backup"
 for f in ${enlaces[@]+"${enlaces[@]}"}; do
     echo "  - quitar el enlace ${f/#$HOME/\~} -> $CONF_SRC"
 done
@@ -84,6 +99,18 @@ read -r -p "¿Continuar? [s/N] " answer
 
 # --- Desinstalar ----------------------------------------------------------------
 
+# Lo primero: con la shell de login aún en zsh, quitar zsh dejaría sin poder entrar
+if [ -n "$prev" ]; then
+    cambiar_shell "$prev"
+    info "tu shell de login vuelve a ser $prev (en las sesiones nuevas)"
+fi
+if [ "$zshenv" -eq 1 ]; then
+    rm "$ZSHENV"
+    info "enlace ~/.zshenv quitado"
+    restore_backup "$ZSHENV" zsh/zshenv
+fi
+rm -f "$(global_file zsh)"
+
 for f in ${enlaces[@]+"${enlaces[@]}"}; do
     rm "$f"
     info "enlace ${f/#$HOME/\~} quitado"
@@ -95,8 +122,11 @@ if [ "$quitar_dir" -eq 1 ]; then
     rmdir_vacio "$CONF_DIR" "$TC_DIR" "$(dirname "$TC_DIR")"
 fi
 
+# Si la shell de login ha cambiado, la de los panes nuevos también: la que tmux
+# tomó al arrancar era zsh
 for s in "${sockets[@]}"; do
     tmux -S "$s" set -gu default-command
+    [ -z "$prev" ] || tmux -S "$s" set -g default-shell "$prev"
     info "tmux '$(basename "$s")': los panes nuevos arrancan en la shell de login"
 done
 

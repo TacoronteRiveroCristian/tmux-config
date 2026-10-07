@@ -4,6 +4,8 @@
 # Se lanza desde la raíz del repo y se puede ejecutar tantas veces como se quiera:
 #   ./install zsh               instalar lo que falte (sudo solo si falta algo) y enlazar
 #   ./install zsh --actualizar  además, actualizar los paquetes a la última versión de la distro
+#   ./install zsh --global      también fuera de tmux: zsh como shell de login
+#   ./install zsh --solo-tmux   solo en los panes de tmux (lo de siempre)
 #
 # Qué hace:
 #   1. zsh, zsh-autosuggestions, zsh-syntax-highlighting, fzf, zoxide y tealdeer
@@ -20,7 +22,11 @@
 #      "zsh" tecleado fuera de tmux sigue como lo trae la distro.
 #   5. Si quedó el ~/.zshrc enlazado de la versión anterior, lo quita y
 #      devuelve a su sitio tu ~/.zshrc de antes (el backup ~/.zshrc.bak.<fecha>).
-# No cambia la shell de login: zsh arranca en los panes de tmux.
+#   6. Con --global, zsh también fuera de tmux: enlaza ~/.zshenv a zsh/zshenv
+#      (que lleva a zsh a esta config) y tu shell de login pasa a ser zsh (con
+#      sudo), apuntando la de antes en ~/.local/state/tmux-config/zsh.global.
+#      Con --solo-tmux, deshace eso: vuelve tu shell de antes y tu ~/.zshenv.
+# Sin --global no cambia la shell de login: zsh arranca en los panes de tmux.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,6 +34,9 @@ CONF_SRC="$REPO_DIR/zsh/.zshrc"
 
 . "$REPO_DIR/lib/comun.sh"
 CONF_DST="$TC_DIR/zsh/.zshrc"
+ZSHENV_SRC="$REPO_DIR/zsh/zshenv"
+ZSHENV="$HOME/.zshenv"
+SITIO="$(sitio zsh)"   # tmux o global: lo decide ./install
 
 MODO=instalar ACTUALIZAR=0
 for a in "$@"; do
@@ -37,8 +46,70 @@ for a in "$@"; do
         *)            die "uso: ./install zsh [--actualizar] [--check] [-y]" ;;
     esac
 done
-# Lo suyo del plan son los paquetes: ~/.zshrc no se toca
-[ "$MODO" = instalar ] || exit 0
+
+# Lo de fuera de tmux en el plan de ./install, sin tocar nada: los paquetes los
+# enseña él, y ~/.zshrc no se toca
+plan() {
+    local sh prev
+    sh="$(shell_login)"
+    if [ "$SITIO" = global ]; then
+        if [[ "$sh" != */zsh ]]; then
+            plan_linea cambiar "tu shell de login: $sh → zsh, con esta config también fuera de tmux (para volver: ./install zsh --solo-tmux)"
+        elif ! link_is_ours "$ZSHENV_SRC" "$ZSHENV"; then
+            plan_linea cambiar "zsh, que ya es tu shell de login, carga esta config también fuera de tmux$([ -e "$HOME/.zshrc" ] && echo ', no tu ~/.zshrc')"
+        else
+            plan_linea ya "zsh también fuera de tmux (es tu shell de login)"
+        fi
+        if { [ -e "$ZSHENV" ] || [ -L "$ZSHENV" ]; } && ! link_is_ours "$ZSHENV_SRC" "$ZSHENV"; then
+            plan_linea backup "${ZSHENV/#$HOME/\~} no es de este repo: se guarda como ~/.zshenv.bak.<fecha>"
+        fi
+    elif es_global zsh; then
+        prev="$(cat "$(global_file zsh)")"
+        if [ -n "$prev" ] && [[ "$sh" == */zsh ]]; then
+            plan_linea cambiar "tu shell de login vuelve a ser $prev: zsh, solo dentro de tmux"
+        else
+            plan_linea cambiar "zsh fuera de tmux deja de cargar esta config (se quita ~/.zshenv): zsh, solo dentro de tmux"
+        fi
+    fi
+}
+if [ "$MODO" = plan ]; then plan; exit 0; fi
+
+# --global: zsh pasa a ser la shell de login, y ~/.zshenv lo lleva a esta
+# config. Primero la shell: si eso falla (sin sudo, usuario de LDAP...), no queda
+# nada a medias. Luego se apunta la de antes, para que --solo-tmux y ./uninstall
+# zsh la devuelvan (si ya era zsh, no se apunta nada)
+fuera_global() {
+    local sh zsh_bin
+    sh="$(shell_login)"
+    zsh_bin="$(command -v zsh)"
+    if [[ "$sh" != */zsh ]]; then
+        cambiar_shell "$zsh_bin"
+        info "tu shell de login es $zsh_bin: al entrar por SSH (en las sesiones nuevas), zsh con esta config"
+    fi
+    if ! es_global zsh; then
+        mkdir -p "$STATE_DIR"
+        if [[ "$sh" == */zsh ]]; then : > "$(global_file zsh)"; else echo "$sh" > "$(global_file zsh)"; fi
+    fi
+    link_with_backup "$ZSHENV_SRC" "$ZSHENV"
+    info "zsh también fuera de tmux; para volver a solo tmux: ./install zsh --solo-tmux"
+}
+
+# --solo-tmux tras --global: vuelve la shell de login de antes y tu ~/.zshenv. El
+# ~/.zshenv, también si es de otro clon del repo (es_del_repo)
+fuera_solo_tmux() {
+    local prev
+    prev="$(cat "$(global_file zsh)")"
+    if [ -n "$prev" ] && [[ "$(shell_login)" == */zsh ]]; then
+        cambiar_shell "$prev"
+        info "tu shell de login vuelve a ser $prev (en las sesiones nuevas)"
+    fi
+    if es_del_repo "$ZSHENV" zsh/zshenv; then
+        rm "$ZSHENV"
+        info "enlace ~/.zshenv quitado"
+        restore_backup "$ZSHENV" zsh/zshenv
+    fi
+    rm -f "$(global_file zsh)"
+}
 
 # tldr no trae páginas: hay que descargarlas (en ~/.cache/tealdeer)
 tldr_paginas() {
@@ -107,5 +178,11 @@ if link_is_ours "$REPO_DIR/.tmux.conf" "$HOME/.tmux.conf"; then
 else
     aviso "~/.tmux.conf no es de este repo: tmux no arrancará en zsh (./install tmux)"
 fi
-info "tu shell de login no cambia: fuera de tmux todo sigue como lo trae la distro"
+if [ "$SITIO" = global ]; then
+    fuera_global
+elif es_global zsh; then
+    fuera_solo_tmux
+else
+    info "tu shell de login no cambia: fuera de tmux sigue la de la distro (zsh también fuera: ./install zsh --global)"
+fi
 info "listo"

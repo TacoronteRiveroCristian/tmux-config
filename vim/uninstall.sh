@@ -13,7 +13,8 @@
 #   3. Lo mismo con lo que dejaba en $HOME la versión anterior, si es de este
 #      repo: ~/.vimrc, ~/.config/nvim/init.lua, ~/.local/bin/nvim y el neovim al
 #      que apunta, y ~/.local/share/nvim/tmux-config.
-#   4. Desinstala los paquetes que instaló ./install vim (los apuntados en
+#   4. Con --global, quita su bloque de ~/.bashrc (queda como estaba).
+#   5. Desinstala los paquetes que instaló ./install vim (los apuntados en
 #      ~/.local/state/tmux-config/vim.paquetes; también vim, si lo instaló la
 #      versión anterior); los que ya estaban, no. apt/dnf enseña qué más se
 #      quita y vuelve a confirmar.
@@ -74,7 +75,11 @@ done < <(state_list vim)
 
 # --- Resumen y confirmación ---------------------------------------------------
 
-if [ ${#enlaces[@]} -eq 0 ] && [ ${#viejos[@]} -eq 0 ] && [ ${#nvim_dirs[@]} -eq 0 ] && [ ${#datos[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ]; then
+bloque=0
+hay_bloque && bloque=1
+
+if [ ${#enlaces[@]} -eq 0 ] && [ ${#viejos[@]} -eq 0 ] && [ ${#nvim_dirs[@]} -eq 0 ] && [ ${#datos[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ] &&
+   [ "$bloque" -eq 0 ] && ! es_global vim; then
     info "nada que desinstalar"
     exit 0
 fi
@@ -92,11 +97,21 @@ done
 for d in ${datos[@]+"${datos[@]}"}; do
     echo "  - quitar ${d/#$HOME/\~} ($(du -sh "$d" | cut -f1))"
 done
+[ "$bloque" -eq 0 ] || echo "  - quitar el bloque de tmux-config de ~/.bashrc (--global: neovim fuera de tmux)"
 [ ${#quitar[@]} -eq 0 ] || echo "  - desinstalar los paquetes que instaló ./install vim: ${quitar[*]}"
 read -r -p "¿Continuar? [s/N] " answer
 [[ "$answer" =~ ^[sS]$ ]] || { info "cancelado, no se ha tocado nada"; exit 0; }
 
 # --- Desinstalar ----------------------------------------------------------------
+
+if [ "$bloque" -eq 1 ]; then
+    if quitar_bloque; then
+        info "quitado el bloque de ~/.bashrc"
+    else
+        aviso "el bloque de tmux-config en ~/.bashrc está tocado a mano (le falta \"$BLOQUE_INI\" o \"$BLOQUE_FIN\", o está repetido): no se toca, quítalo a mano"
+    fi
+fi
+rm -f "$(global_file vim)"
 
 for f in ${enlaces[@]+"${enlaces[@]}"}; do
     rm "$f"

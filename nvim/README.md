@@ -2,8 +2,9 @@
 
 La config de neovim que instala `./install vim`. El instalador está en
 [`../vim/`](../vim/): el componente se llama `vim` porque, dentro de tmux, `vi`
-y `vim` abren este neovim. Fuera de tmux, `vi` sigue siendo el de la distro.
-vim clásico no se instala.
+y `vim` abren este neovim. Fuera de tmux, `vi` sigue siendo el de la distro,
+salvo con [`./install vim --global`](#también-fuera-de-tmux---global). vim
+clásico no se instala.
 
 | Fichero | Qué cambias ahí |
 |---|---|
@@ -39,7 +40,8 @@ sección "En neovim" de [docs/CHEATSHEET.md](../docs/CHEATSHEET.md#en-neovim-si-
   Al salir con cambios sin guardar, pregunta en vez de dar error.
 - Dentro de tmux (con `./install zsh`) es el **editor por defecto**: lo que
   abren `git commit`, `crontab -e`, `sudoedit`, `systemctl edit`… Fuera de
-  tmux sigue el de la distro: nano (Debian/Ubuntu) o vi (Rocky). Con `sudo`
+  tmux sigue el de la distro, nano (Debian/Ubuntu) o vi (Rocky), salvo con
+  `--global`. Con `sudo`
   (`sudo crontab -e`, `visudo`), también el de la distro, porque sudo no pasa
   `EDITOR` y abrir tu neovim como root no es buena idea. Para ficheros del sistema:
   `sudoedit /etc/fichero`, que edita una copia con tu config y la guarda con sudo.
@@ -151,7 +153,27 @@ En un Debian/Ubuntu sin python3 (imágenes mínimas), el `npm` de la distro lo
 necesita, y con él llega `/etc/inputrc`, que cambia algunas teclas de bash. Los
 servidores normales ya traen python3.
 
+## También fuera de tmux: `--global`
+
+```bash
+./install vim --global      # nvim, vi, vim y EDITOR también fuera de tmux
+./install vim --solo-tmux   # volver a solo dentro de tmux
+```
+
+La primera vez, con terminal, `./install vim` lo pregunta; luego se queda
+apuntado (`~/.local/state/tmux-config/vim.global`) y `./actualizar` lo mantiene.
+Con `--global`, un bloque al final de `~/.bashrc`, entre
+`# >>> tmux-config >>>` y `# <<< tmux-config <<<`, pone en bash interactivo el PATH
+con `nvim`, `vi`, `vim`, `view` y `vimdiff`, `NVIM_APPNAME` y `EDITOR`/`VISUAL`.
+Si zsh también es global, `.zshrc` hace lo mismo en el zsh de fuera. `ssh host
+comando` y los scripts no lo ven, y se nota en las sesiones nuevas.
+
+`--solo-tmux` y `./uninstall vim` quitan el bloque y dejan `~/.bashrc` byte a
+byte como estaba. Si `~/.bashrc` es un enlace (un gestor de dotfiles), no se
+toca y lo avisa; también si el bloque está tocado a mano (sin una de esas dos
+líneas, o repetido): lo de debajo nunca se pierde.
+
 ## Lo que hace `./uninstall vim`
 
-Quita los enlaces, el neovim oficial, los plugins, los servidores y solo los
-paquetes que instaló él. Tu `local.lua` y el historial de deshacer se quedan.
+Quita los enlaces, el neovim oficial, los plugins, los servidores, el bloque de
+`~/.bashrc` (con `--global`) y solo los paquetes que instaló él. Tu `local.lua` y el historial de deshacer se quedan.

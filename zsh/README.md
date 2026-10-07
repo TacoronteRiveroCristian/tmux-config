@@ -1,13 +1,15 @@
 # zsh
 
-zsh para los panes de tmux, y solo para ellos. La shell de login no cambia:
-fuera de tmux, en `ssh host comando`, en los scripts, como root y para el resto
-de usuarios todo sigue en bash. Instálalo en tu cuenta, no en cuentas
-compartidas (`ubuntu`, `admin`, root).
+zsh para los panes de tmux. Por defecto, solo para ellos: la shell de login no
+cambia, y fuera de tmux, en `ssh host comando`, en los scripts, como root y para
+el resto de usuarios todo sigue en bash. Con `./install zsh --global`, también
+fuera: [abajo](#también-fuera-de-tmux---global). Instálalo en tu cuenta, no en
+cuentas compartidas (`ubuntu`, `admin`, root).
 
 | Fichero | Qué es |
 |---|---|
 | `.zshrc` | Toda la config: alias, teclas, prompt, plugins. **El que editas** |
+| `zshenv` | Con `--global`, `~/.zshenv` enlaza aquí: lleva al zsh de fuera de tmux a `.zshrc` |
 | `install.sh` | Lo que hace `./install zsh` |
 | `uninstall.sh` | Lo que hace `./uninstall zsh` |
 
@@ -26,7 +28,9 @@ zsh" de [docs/CHEATSHEET.md](../docs/CHEATSHEET.md#en-zsh-si-instalaste-install-
 - Alias de Ubuntu: `ll`, `la`, y `ls` y `grep` con colores.
 - Prompt sin iconos: se ve igual con Nerd Font o sin ella, desde cualquier
   terminal. La fuente es cosa del terminal de tu PC, no de los servidores.
-- Dentro de tmux pone neovim como editor (`EDITOR`, `VISUAL`), si está `./install vim`.
+- Dentro de tmux pone neovim como editor (`EDITOR`, `VISUAL`), si está
+  `./install vim`. Fuera de tmux (con zsh global), solo si vim también es
+  global (`./install vim --global`).
 
 ## Cómo está organizado `.zshrc`
 
@@ -91,14 +95,44 @@ Se puede ejecutar tantas veces como se quiera:
 Si tmux ya está en marcha, los panes nuevos arrancan en zsh directamente; los
 que ya estaban abiertos siguen en su shell.
 
+## También fuera de tmux: `--global`
+
+```bash
+./install zsh --global      # zsh también al entrar por SSH, como shell de login
+./install zsh --solo-tmux   # volver a solo los panes de tmux
+```
+
+La primera vez, con terminal, `./install zsh` lo pregunta; luego se queda
+apuntado y `./actualizar` lo mantiene. Con `--global`:
+
+1. `~/.zshenv` enlaza a `zsh/zshenv`, que pone `ZDOTDIR` donde está `.zshrc`:
+   el zsh de fuera carga la misma config que los panes. Si ya tenías un
+   `~/.zshenv`, se aparta como `~/.zshenv.bak.<fecha>`, y tu `~/.zshrc` deja de
+   leerse (lo de esa máquina, en `~/.zshrc.local`).
+2. Tu shell de login pasa a ser zsh (`sudo usermod -s`; tiene que estar en
+   `/etc/shells`). La de antes queda en `~/.local/state/tmux-config/zsh.global`.
+   Se nota en las sesiones nuevas.
+3. Al entrar, `zsh/zshenv` carga también lo que bash lee al entrar y el zsh de
+   Debian, Ubuntu y Raspberry Pi OS no: `/etc/profile`, `/etc/profile.d` y
+   `~/.profile` (PATH, proxies, locale), como `sh`.
+4. `ssh host comando` se ejecuta con `zsh -c`: casi todo lo de bash funciona,
+   pero algún bash-ismo en esa línea (`shopt`, `read -p`) puede fallar. Los
+   scripts con `#!/bin/bash`, root y los demás usuarios, igual que siempre.
+
+`--solo-tmux` y `./uninstall zsh` lo deshacen: vuelve tu shell de antes y tu
+`~/.zshenv`. Para volver a bash, usa `--solo-tmux` y no `chsh`: con zsh global
+apuntado, el siguiente `./actualizar -y` volvería a poner zsh. Para neovim, vi y vim fuera de tmux: `./install vim --global`
+([nvim/](../nvim/README.md#también-fuera-de-tmux---global)).
+
 En imágenes mínimas de Debian/Ubuntu (Docker, cloud minimal) no se instala
 `/usr/share/doc`, que es donde Debian deja los atajos de fzf para zsh. En ese
 caso `Ctrl+R` es el de zsh, sin fzf, y `./install zsh` lo avisa.
 
 ## Lo que hace `./uninstall zsh`
 
-Quita el enlace (y el `~/.zshrc` enlazado de la versión anterior), devuelve los
-panes nuevos de los tmux en marcha a la shell de login y desinstala **solo los
-paquetes que instaló `./install zsh`**. zsh se queda si es la shell de login de
+Con `--global`, primero te devuelve tu shell de login de antes y quita
+`~/.zshenv`. Luego quita el enlace (y el `~/.zshrc` enlazado de la versión
+anterior), devuelve los panes nuevos de los tmux en marcha a la shell de login
+y desinstala **solo los paquetes que instaló `./install zsh`**. zsh se queda si es la shell de login de
 algún usuario, porque sin ella no podría entrar. Si quita `tealdeer`, borra
 también sus páginas. El historial y las carpetas que aprendió zoxide se quedan.

@@ -2,7 +2,8 @@
 # shellcheck disable=SC2016  # comillas simples: se expanden dentro de "su -c"
 # tests/actualizar.sh — ./actualizar con cambios de verdad en upstream, dentro del
 # contenedor: pull, relanzarse con la versión nueva, qué detecta como
-# instalado, --actualizar, y que con un pull imposible no instale nada.
+# instalado, --actualizar, con terminal las preguntas ([S/n], y solo tmux o
+# también fuera), y que con un pull imposible no instale nada.
 . /tests/comun.sh
 base
 upstream
@@ -58,6 +59,15 @@ check "el plan dice que aparta su config" has "~/.tmux.conf no es de este repo: 
 check "n: cancela sin tocar nada" bash -c "grep -q 'cancelado: no se ha tocado nada' <<<\"\$1\" && [ ! -L /home/u3/.tmux.conf ] && grep -q mía /home/u3/.tmux.conf" _ "$out"
 out="$(as u3 "cd $D && printf '\\n' | script -qec './install tmux' /dev/null")"
 check "Intro: sigue, enlaza y guarda la suya" bash -c "grep -q '¿Seguir? \\[S/n\\]' <<<\"\$1\" && [ -L /home/u3/.tmux.conf ] && grep -q mía /home/u3/.tmux.conf.bak.*" _ "$out"
+
+# zsh ya lo instaló u: lo único que cambiaría es dónde se usa
+paso "con terminal, zsh por primera vez (u3): pregunta si también fuera de tmux"
+out="$(as u3 "cd $D && printf 'g\\nn\\n' | script -qec './install zsh' /dev/null")"
+check "g: el plan cambia la shell de login, y n cancela sin tocarla" bash -c "grep -q 'zsh: ¿solo en los panes de tmux' <<<\"\$1\" && grep -q 'cambiar *tu shell de login' <<<\"\$1\" && grep -q 'cancelado: no se ha tocado nada' <<<\"\$1\" && [ \"\$(getent passwd u3 | cut -d: -f7)\" = /bin/bash ] && [ ! -e /home/u3/.local/opt/tmux-config/zsh/.zshrc ]" _ "$out"
+out="$(as u3 "cd $D && printf '\\n' | script -qec './install zsh' /dev/null")"
+check "Intro: solo tmux, sin nada que cambiar fuera, y lo instala" bash -c "! grep -q 'cambiar ' <<<\"\$1\" && [ -L /home/u3/.local/opt/tmux-config/zsh/.zshrc ] && [ \"\$(getent passwd u3 | cut -d: -f7)\" = /bin/bash ]" _ "$out"
+out="$(as u3 "cd $D && printf '\\n' | script -qec './install zsh' /dev/null")"
+check "ya instalado: no vuelve a preguntar" bash -c "! grep -q '¿solo en los panes' <<<\"\$1\"" _ "$out"
 
 paso "pull imposible: commit local de u y otro en upstream"
 as u "cd $D && echo local >> README.md && git commit -qam local"

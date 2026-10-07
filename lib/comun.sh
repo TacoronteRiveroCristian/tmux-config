@@ -23,9 +23,10 @@ aviso() {
 # de tocar nada; las LÍNEAs van debajo. TIPO:
 #   ya, instalar, actualizar, descargar   lo que hay y lo que hará
 #   backup    aparta una config tuya (como *.bak.<fecha>)
+#   cambiar   cambia algo de fuera de tmux (shell de login, ~/.bashrc): --global
 #   sin       sigue sin ello · aviso: conviene leerlo (los dos, también en el resumen)
 #   bloquea   no se instala nada
-# instalar, actualizar y backup piden confirmación. Con TC_PLAN (lo pone
+# instalar, actualizar, backup y cambiar piden confirmación. Con TC_PLAN (lo pone
 # ./install) queda apuntada ahí, para el recuento y el resumen.
 plan_linea() {
     local tipo="$1" e l; shift
@@ -36,6 +37,7 @@ plan_linea() {
         actualizar) e="actualizar" ;;
         descargar)  e="descargar " ;;
         backup)     e="backup    " ;;
+        cambiar)    e="cambiar   " ;;
         sin)        e="sin       " ;;
         aviso)      e="aviso     " ;;
         bloquea)    e="BLOQUEA   " ;;
@@ -200,6 +202,135 @@ state_set() {
         mkdir -p "$STATE_DIR"
         printf '%s\n' "$@" | sort -u > "$f"
     fi
+}
+
+# --- Instalado: su enlace apunta a un clon de este repo -------------------------
+#
+# También los enlaces de la versión anterior (~/.zshrc, ~/.config/nvim,
+# ~/.vimrc): así ./actualizar los migra
+instalado() {
+    local conf="${XDG_CONFIG_HOME:-$HOME/.config}"
+    case "$1" in
+        tmux) es_del_repo "$HOME/.tmux.conf" .tmux.conf ;;
+        zsh)  es_del_repo "$TC_DIR/zsh/.zshrc" zsh/.zshrc || es_del_repo "$HOME/.zshrc" zsh/.zshrc ;;
+        vim)  es_del_repo "$conf/tmux-config-nvim/init.lua" nvim/init.lua \
+                  || es_del_repo "$conf/nvim/init.lua" nvim/init.lua || es_del_repo "$HOME/.vimrc" vim/vimrc ;;
+        *)    return 1 ;;
+    esac
+}
+
+# --- zsh y vim: solo dentro de tmux o también fuera (--global) ------------------
+#
+# Por defecto, solo dentro de tmux. Con ./install --global, también fuera: zsh
+# como shell de login (zsh/install.sh) y neovim con un bloque en ~/.bashrc
+# (vim/install.sh). Queda apuntado en <componente>.global (el de zsh guarda la
+# shell de login de antes, para devolverla) y ./actualizar lo mantiene.
+
+global_file() { echo "$STATE_DIR/$1.global"; }
+es_global()   { [ -e "$(global_file "$1")" ]; }
+
+# sitio COMPONENTE: global o tmux. El que eligió ./install (TC_SITIO_<componente>)
+# o, si el script va suelto, el apuntado
+sitio() {
+    local v="TC_SITIO_$1"
+    if [ -n "${!v:-}" ]; then echo "${!v}"
+    elif es_global "$1"; then echo global
+    else echo tmux
+    fi
+}
+
+# La shell de login de este usuario: la de /etc/passwd, no $SHELL (que es la de
+# cuando entraste)
+shell_login() { getent passwd "$(id -un)" | cut -d: -f7; }
+
+# cambiar_shell RUTA: la shell de login pasa a ser RUTA (con sudo: chsh pediría
+# la contraseña). Tiene que estar en /etc/shells: si no, no se podría entrar.
+# Quien la llama la usa antes de tocar nada más: si falla, nada queda a medias
+cambiar_shell() {
+    grep -qxF "$1" /etc/shells || die "$1 no está en /etc/shells: tu shell de login no se cambia"
+    need_sudo "cambiar tu shell de login"
+    $SUDO usermod -s "$1" "$(id -un)" || die "no se pudo cambiar tu shell de login a $1"
+}
+
+# El bloque de vim --global al final de ~/.bashrc, entre las líneas BLOQUE_INI y
+# BLOQUE_FIN (fijas: así se reconoce el de cualquier versión). poner_bloque
+# apunta en BASHRC_ANTES si ~/.bashrc no existía o no acababa en salto de línea,
+# y quitar_bloque lo deja byte a byte como estaba. Si el bloque está tocado a
+# mano (falta una de las dos líneas, o está repetido), ninguna de las dos lo toca.
+BASHRC="$HOME/.bashrc"
+BASHRC_ANTES="$STATE_DIR/bashrc.antes"
+BLOQUE_INI="# >>> tmux-config >>>"
+BLOQUE_FIN="# <<< tmux-config <<<"
+
+# shellcheck disable=SC2016  # el $ es para bash, al leer ~/.bashrc
+texto_bloque() {
+    printf '%s\n' "$BLOQUE_INI" \
+        '# Lo pone ./install vim --global: nvim, vi, vim y EDITOR, también fuera de' \
+        '# tmux (solo en bash interactivo). ./install vim --solo-tmux lo quita.' \
+        'case $- in *i*)' \
+        '    if [ -x "$HOME/.local/opt/tmux-config/bin/nvim" ]; then' \
+        '        case ":$PATH:" in *":$HOME/.local/opt/tmux-config/bin:"*) ;; *) PATH="$HOME/.local/opt/tmux-config/bin:$PATH" ;; esac' \
+        '        export NVIM_APPNAME=tmux-config-nvim' \
+        '        export EDITOR="$HOME/.local/opt/tmux-config/bin/nvim" VISUAL="$HOME/.local/opt/tmux-config/bin/nvim"' \
+        '    fi ;;' \
+        'esac' \
+        "$BLOQUE_FIN"
+}
+
+# estado_bloque: 0 no hay · 1 hay uno, bien cerrado · 2 está tocado a mano
+estado_bloque() {
+    [ -f "$BASHRC" ] || { echo 0; return; }
+    awk -v ini="$BLOQUE_INI" -v fin="$BLOQUE_FIN" '
+        $0 == ini { i++; if (!li) li = NR }
+        $0 == fin { f++; lf = NR }
+        END { if (!i && !f) print 0; else if (i == 1 && f == 1 && li < lf) print 1; else print 2 }' "$BASHRC"
+}
+hay_bloque() { [ "$(estado_bloque)" != 0 ]; }
+
+# El bloque que hay ahora, si está bien cerrado
+bloque_actual() {
+    [ "$(estado_bloque)" = 1 ] || return 0
+    awk -v ini="$BLOQUE_INI" -v fin="$BLOQUE_FIN" '$0 == ini {f = 1} f {print} f && $0 == fin {f = 0}' "$BASHRC"
+}
+
+# poner_bloque: el bloque al final de ~/.bashrc (el de una versión anterior, se
+# cambia). Falla, sin tocar nada, si está tocado a mano
+poner_bloque() {
+    case "$(estado_bloque)" in
+        2) return 1 ;;
+        1) [ "$(bloque_actual)" != "$(texto_bloque)" ] || return 0
+           quitar_bloque ;;
+    esac
+    mkdir -p "$STATE_DIR"
+    rm -f "$BASHRC_ANTES"
+    if [ ! -e "$BASHRC" ]; then
+        echo no-existia > "$BASHRC_ANTES"
+    elif [ -s "$BASHRC" ] && [ -n "$(tail -c 1 "$BASHRC")" ]; then
+        # sin salto de línea al final, el bloque se pegaría a la última línea
+        echo sin-salto > "$BASHRC_ANTES"
+        echo >> "$BASHRC"
+    fi
+    texto_bloque >> "$BASHRC"
+}
+
+# quitar_bloque: deja ~/.bashrc como estaba antes de poner_bloque. Escribe con
+# cat y no con mv: conserva sus permisos y su dueño. Falla, sin tocar nada, si
+# el bloque está tocado a mano
+quitar_bloque() {
+    local tmp antes=""
+    case "$(estado_bloque)" in 0) return 0 ;; 2) return 1 ;; esac
+    [ ! -f "$BASHRC_ANTES" ] || antes="$(cat "$BASHRC_ANTES")"
+    # el salto de línea que puso poner_bloque, solo si el bloque sigue al final
+    [ "$antes" != sin-salto ] || [ "$(tail -n 1 "$BASHRC")" = "$BLOQUE_FIN" ] || antes=""
+    tmp="$(mktemp)"
+    awk -v ini="$BLOQUE_INI" -v fin="$BLOQUE_FIN" '$0 == ini {f = 1} !f {print} f && $0 == fin {f = 0}' "$BASHRC" > "$tmp"
+    if [ "$antes" = no-existia ] && [ ! -s "$tmp" ]; then
+        rm -f "$BASHRC"
+    else
+        [ "$antes" != sin-salto ] || truncate -s -1 "$tmp"
+        cat "$tmp" > "$BASHRC"
+    fi
+    rm -f "$tmp" "$BASHRC_ANTES"
 }
 
 # --- tmux en marcha -------------------------------------------------------------

@@ -1,0 +1,13 @@
+# ~/.zshenv con ./install zsh --global (es un enlace a este fichero): zsh, también
+# fuera de tmux, carga la config del repo de donde la enlaza ./install zsh, igual
+# que los panes. Sin exportar: solo para este zsh (cada zsh lo vuelve a leer).
+# ./install zsh --solo-tmux y ./uninstall zsh lo quitan.
+ZDOTDIR=~/.local/opt/tmux-config/zsh
+
+# Al entrar (shell de login), lo que bash lee y el zsh de Debian, Ubuntu y
+# Raspberry Pi OS no: /etc/profile, /etc/profile.d y ~/.profile (PATH, proxies,
+# locale...), como sh. Dentro de tmux no: ya viene del tmux que lo arrancó.
+# "ssh host comando" no es de login: no lo lee, como bash.
+if [[ -o login && -z $TMUX ]]; then
+    emulate sh -c '. /etc/profile; [ -r ~/.profile ] && . ~/.profile'
+fi

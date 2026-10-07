@@ -10,8 +10,10 @@
 # BLOQUEA y no se quita, un pane nuevo de tmux (zsh, vim = neovim del repo, z),
 # fuera de tmux nada del repo, un .py en neovim (resaltado, pyright), los
 # servidores LSP en la versión del registro fijado, que sudoedit no deja su
-# historial de deshacer en el HOME, tldr, que bash no se toca y que uninstall
-# no deja nada, respeta lo que ya había y no cierra un tmux abierto.
+# historial de deshacer en el HOME, tldr, que bash no se toca, --global (zsh de
+# login y neovim en ~/.bashrc, también fuera de tmux) y --solo-tmux, que lo
+# deja como estaba, y que uninstall no deja nada, deshace --global, respeta lo
+# que ya había y no cierra un tmux abierto.
 . /tests/comun.sh
 PERFIL="${PERFIL:?}"; DESDE="${DESDE:-}"
 arm=0; [ "$(uname -m)" = aarch64 ] && arm=1
@@ -189,6 +191,44 @@ check "deshacer: no se guarda el de sudoedit" bash -c "! ls '$und' | grep -q '^%
 
 check "bash sin tocar tras instalar" [ "$(bashfiles)" = "$b0" ]
 
+# --global: zsh pasa a ser la shell de login y neovim entra en ~/.bashrc, así que
+# fuera de tmux todo queda como dentro. --solo-tmux lo deshace: vuelve la shell
+# de antes y ~/.bashrc queda como estaba
+paso "./install -y --global zsh vim"
+shell_de() { getent passwd "$U" | cut -d: -f7; }
+sh0="$(shell_de)"
+st="$H/.local/state/tmux-config"
+# Lo que bash lee al entrar (/etc/profile.d): el zsh de login también debe verlo
+echo 'export TC_PERFIL_D=si' > /etc/profile.d/tc-prueba.sh
+out="$(as "$U" "cd $D && ./install -y --global zsh vim")"; r=$?
+echo "$out" | grep -E '^  cambiar|AVISO|ERROR' | sangra ""
+check "install --global" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
+check "el plan dice lo que cambia fuera de tmux" bash -c "grep -q '^  cambiar *tu shell de login: $sh0 → zsh' <<<\"\$1\" && grep -q '^  cambiar *~/.bashrc: un bloque' <<<\"\$1\"" _ "$out"
+check "la shell de login es zsh" bash -c "[[ \$(getent passwd $U | cut -d: -f7) == */zsh ]]"
+# Como al entrar por SSH: la shell de login, interactiva, fuera de tmux
+f="$(su - "$U" -c 'exec $SHELL -lic "echo shell=\${ZSH_VERSION:+zsh}; command -v vim; echo EDITOR=\$EDITOR; type z; echo perfil=\$TC_PERFIL_D"' 2>&1)"; sangra "fuera: " <<<"$f"
+check "fuera de tmux, zsh con la config del repo (vim, EDITOR y z)" bash -c "grep -q shell=zsh <<<\"\$1\" && grep -q '$H/.local/opt/tmux-config/bin/vim' <<<\"\$1\" && grep -q 'EDITOR=$H/.local/opt/tmux-config/bin/nvim' <<<\"\$1\" && grep -q 'z is' <<<\"\$1\"" _ "$f"
+check "el zsh de login lee /etc/profile.d, como bash" has "perfil=si" "$f"
+f="$(su - "$U" -c 'bash -ic "command -v vim; echo EDITOR=\$EDITOR"' 2>&1)"
+check "fuera de tmux, en bash, vim y EDITOR son el neovim del repo" bash -c "grep -q '$H/.local/opt/tmux-config/bin/vim' <<<\"\$1\" && grep -q 'EDITOR=$H/.local/opt/tmux-config/bin/nvim' <<<\"\$1\"" _ "$f"
+check "\"ssh host comando\" no saca nada más" [ "$(su - "$U" -c 'echo hola' 2>&1)" = hola ]
+out="$(as "$U" "cd $D && ./actualizar -y")"; r=$?
+check "./actualizar lo mantiene sin preguntar ni cambiar nada" bash -c "[ $r -eq 0 ] && grep -q 'nada que confirmar' <<<\"\$1\" && [[ \$(getent passwd $U | cut -d: -f7) == */zsh ]] && [ \$(grep -c '^# >>> tmux-config' $H/.bashrc) -eq 1 ]" _ "$out"
+
+paso "./install -y --solo-tmux zsh vim"
+out="$(as "$U" "cd $D && ./install -y --solo-tmux zsh vim")"; r=$?
+echo "$out" | grep -E '^  cambiar|AVISO|ERROR' | sangra ""
+check "install --solo-tmux" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
+check "vuelve la shell de login de antes ($sh0)" [ "$(shell_de)" = "$sh0" ]
+check "sin ~/.zshenv, y bash como estaba" bash -c "[ ! -e $H/.zshenv ] && [ ! -L $H/.zshenv ] && [ \"\$1\" = \"\$2\" ]" _ "$(bashfiles)" "$b0"
+f="$(su - "$U" -c 'bash -ic "command -v vim nvim; type z; echo EDITOR=\$EDITOR"' 2>&1)"
+check "fuera de tmux, otra vez nada del repo" bash -c "! grep -q tmux-config <<<\"\$1\" && ! grep -q 'z is' <<<\"\$1\"" _ "$f"
+check "sin marcas de --global" bash -c "[ ! -e $st/zsh.global ] && [ ! -e $st/vim.global ] && [ ! -e $st/bashrc.antes ]"
+rm -f /etc/profile.d/tc-prueba.sh
+# Otra vez --global, para ver que ./uninstall también lo deshace
+out="$(as "$U" "cd $D && ./install -y --global zsh vim")"; r=$?
+check "otra vez --global, para el uninstall" bash -c "[ $r -eq 0 ] && [[ \$(getent passwd $U | cut -d: -f7) == */zsh ]] && grep -q '^# >>> tmux-config' $H/.bashrc"
+
 paso "uninstall vim zsh tmux, con un tmux abierto"
 # Con una sesión abierta, como en un servidor con trabajos dentro: no se cierra
 as "$U" 'tmux new-session -d -s abierta' >/dev/null
@@ -219,6 +259,9 @@ if [[ " $antes " != *" tmux "* ]]; then
     fi
 fi
 check "sin páginas de tldr" [ ! -e "$H/.cache/tealdeer" ]
+check "uninstall deshace --global: la shell de antes, sin ~/.zshenv ni marcas" bash -c "[ \"\$(getent passwd $U | cut -d: -f7)\" = '$sh0' ] && [ ! -L $H/.zshenv ] && [ ! -e $st/zsh.global ] && [ ! -e $st/vim.global ] && [ ! -e $st/bashrc.antes ]"
+# zsh, que instaló él: se va con la shell de login devuelta (si no, se quedaría)
+[ -n "$DESDE" ] || check "quita zsh, que instaló él" bash -c "! dpkg-query -W -f='\${Status}' zsh 2>/dev/null | grep -q 'install ok installed'"
 [ "$PERFIL" = pi-trixie ] && check "conserva el npm de NodeSource" bash -c "command -v npm >/dev/null"
 check "bash sin tocar tras desinstalar" [ "$(bashfiles)" = "$b0" ]
 fin
