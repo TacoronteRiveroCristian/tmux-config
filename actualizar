@@ -2,6 +2,7 @@
 # actualizar — trae los cambios del repo y vuelve a aplicar lo que tengas instalado.
 #
 #   ./actualizar                git pull + ./install de los componentes instalados
+#                               (si el zsh nuevo no carga limpio, no hace el pull)
 #   ./actualizar --actualizar   además, actualizar sus paquetes
 #   ./actualizar -y             sin preguntar si el plan instala algo (sin terminal, hace falta)
 #
@@ -17,16 +18,43 @@ flags=()
 for a in "$@"; do
     case "$a" in
         --actualizar|-y|--yes) flags+=("$a") ;;
-        -h|--help)    sed -n '2,9s/^# \{0,1\}//p' "$REPO_DIR/actualizar"; exit 0 ;;
+        -h|--help)    sed -n '2,10s/^# \{0,1\}//p' "$REPO_DIR/actualizar"; exit 0 ;;
         *)            die "uso: ./actualizar [--actualizar] [-y]" ;;
     esac
 done
 
-# El pull puede cambiar este mismo script: tras él se relanza, para que siga la
-# versión nueva y no la que bash ya tenía a medio leer
+# zsh_nuevo_valido COMMIT: zsh/.zshrc y zsh/zshenv de COMMIT cargan limpios con
+# este zsh (zsh_valida). Se prueban antes de traerlos porque el pull ya los
+# activa (los enlaces apuntan al repo), y con --global zsh es la shell al entrar
+# por SSH. Si no cambian, o no hay zsh de este repo, no hay nada que probar
+zsh_nuevo_valido() {
+    local tmp err
+    instalado zsh && command -v zsh >/dev/null || return 0
+    ! git -C "$REPO_DIR" diff --quiet HEAD "$1" -- zsh/.zshrc zsh/zshenv || return 0
+    tmp="$(mktemp -d)"
+    if git -C "$REPO_DIR" show "$1:zsh/.zshrc" > "$tmp/zshrc" 2>/dev/null &&
+       git -C "$REPO_DIR" show "$1:zsh/zshenv" > "$tmp/zshenv" 2>/dev/null; then
+        if ! err="$(zsh_valida "$tmp/zshrc" "$tmp/zshenv")"; then
+            err="${err//$tmp\/zshrc/zsh/.zshrc (la versión nueva)}"
+            printf '%s\n' "${err//$tmp\/zshenv/zsh/zshenv (la versión nueva)}"
+            rm -rf "$tmp"
+            return 1
+        fi
+    fi
+    rm -rf "$tmp"
+}
+
+# El pull, en dos pasos: traer (fetch), probar zsh y solo entonces avanzar. Puede
+# cambiar este mismo script: tras él se relanza, para que siga la versión nueva y
+# no la que bash ya tenía a medio leer
 if [ -z "${TC_TRAS_PULL:-}" ]; then
     info "git pull"
-    git -C "$REPO_DIR" pull --ff-only || die "git pull no ha podido (mira git status): no se ha instalado nada"
+    git -C "$REPO_DIR" fetch || die "git fetch no ha podido (¿sin red?): no se ha instalado nada"
+    nuevo="$(git -C "$REPO_DIR" rev-parse -q --verify '@{u}')" ||
+        die "git pull no ha podido: esta rama no sigue a ninguna remota (mira git status): no se ha instalado nada"
+    err="$(zsh_nuevo_valido "$nuevo")" ||
+        die "$err"$'\n'"no se actualiza: sigues con la versión de antes, que funciona (cuando se arregle en el repo, ./actualizar otra vez)"
+    git -C "$REPO_DIR" merge --ff-only "$nuevo" || die "git pull no ha podido (mira git status): no se ha instalado nada"
     TC_TRAS_PULL=1 exec "$REPO_DIR/actualizar" "$@"
 fi
 

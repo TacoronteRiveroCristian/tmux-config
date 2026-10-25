@@ -134,19 +134,27 @@ que ya estaban abiertos siguen en su shell.
 La primera vez, con terminal, `./install zsh` lo pregunta; luego se queda
 apuntado y `./actualizar` lo mantiene. Con `--global`:
 
-1. `~/.zshenv` enlaza a `zsh/zshenv`, que pone `ZDOTDIR` donde está `.zshrc`:
-   el zsh de fuera carga la misma config que los panes. Si ya tenías un
+1. Antes, el plan avisa de lo que bash carga al entrar y zsh no leerá: lo que
+   añadiste a `~/.bashrc` y `~/.bash_profile` (lo que no trae `/etc/skel`),
+   `~/.bash_aliases`, `~/.bash_login` y `~/.bashrc.d`. Solo qué es
+   (`export NVM_DIR`, `alias gs`, `eval de conda`), nunca el valor. Lo que uses,
+   cópialo a `~/.zshrc.local`; lo que ya está ahí no sale.
+2. `~/.zshenv` carga `zsh/zshenv`, que pone `ZDOTDIR` donde está `.zshrc`: el
+   zsh de fuera carga la misma config que los panes. Si ya tenías un
    `~/.zshenv`, se aparta como `~/.zshenv.bak.<fecha>`, y tu `~/.zshrc` deja de
-   leerse (lo de esa máquina, en `~/.zshrc.local`).
-2. Tu shell de login pasa a ser zsh (`sudo usermod -s`; tiene que estar en
+   leerse (lo de esa máquina, en `~/.zshrc.local`). Lo que se añada debajo de
+   su última línea (rustup lo hace) se conserva al actualizar y al quitarlo.
+3. Tu shell de login pasa a ser zsh (`sudo usermod -s`; tiene que estar en
    `/etc/shells`). La de antes queda en `~/.local/state/tmux-config/zsh.global`.
    Se nota en las sesiones nuevas.
-3. Al entrar, `zsh/zshenv` carga también lo que bash lee al entrar y el zsh de
+4. Al entrar, `zsh/zshenv` carga también lo que bash lee al entrar y el zsh de
    Debian, Ubuntu y Raspberry Pi OS no: `/etc/profile`, `/etc/profile.d` y
    `~/.profile` (PATH, proxies, locale), como `sh`.
-4. `ssh host comando` se ejecuta con `zsh -c`: casi todo lo de bash funciona,
-   pero algún bash-ismo en esa línea (`shopt`, `read -p`) puede fallar. Los
-   scripts con `#!/bin/bash`, root y los demás usuarios, igual que siempre.
+5. `ssh host comando` se ejecuta con `zsh -c`, como bash en lo que más se nota:
+   un `*` o `?` sin coincidencias se pasa tal cual (`rm -f /tmp/x*`), y
+   `~/.local/bin` y `~/bin` están en el PATH. Algún bash-ismo en esa línea
+   (`shopt`, `read -p`) puede fallar. Los scripts con `#!/bin/bash`, root y los
+   demás usuarios, igual que siempre.
 
 `--solo-tmux` y `./uninstall zsh` lo deshacen: vuelve tu shell de antes y tu
 `~/.zshenv`. Para volver a bash, usa `--solo-tmux` y no `chsh`: con zsh global
@@ -154,6 +162,27 @@ apuntado, el siguiente `./actualizar -y` volvería a poner zsh.
 
 Para neovim, vi y vim fuera de tmux: `./install vim --global`
 ([nvim/](../nvim/README.md#también-fuera-de-tmux---global)).
+
+### Si algo va mal
+
+- **Has movido o borrado el repo:** al entrar, zsh lo avisa en una línea y
+  sigue, sin la config. En la carpeta nueva del repo, `./install zsh --global`
+  (y `./install` de lo demás). Dentro de un tmux que ya estaba en marcha, los
+  panes nuevos abren el asistente de zsh para usuarios nuevos hasta entonces
+  (`q` lo cierra).
+- **Antes de quitar zsh con apt o dnf**, `./install zsh --solo-tmux` (o
+  `./uninstall zsh`). Si zsh desaparece siendo tu shell de login, no se puede
+  entrar por SSH, ni con scp. Para recuperarlo, desde otra cuenta con sudo o
+  desde la consola: `sudo usermod -s /bin/bash <usuario>`.
+- **Un `.zshrc` roto no te deja fuera:** zsh avisa del error y entra, sin la
+  config. `./actualizar` prueba el zsh nuevo antes de traerlo: si no carga
+  limpio, no actualiza y sigues con el de antes.
+- **`sudo -s`** abre zsh como root, sin tu config (usa tu shell). `sudo -i` y
+  `su -` siguen con la de root.
+- **Rocky/RHEL:** `~/.bashrc.d` es de bash; zsh no lo lee (el plan lo avisa).
+- **Arranca tmux desde una sesión** (`ssh host` y luego `tmux`), no con
+  `ssh -t host tmux ...`: así los panes heredan lo de `~/.profile` (PATH,
+  proxies). Esto vale también sin `--global`.
 
 En imágenes mínimas de Debian/Ubuntu (Docker, cloud minimal) no se instala
 `/usr/share/doc`, que es donde Debian deja los atajos de fzf para zsh. En ese

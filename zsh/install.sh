@@ -17,16 +17,18 @@
 #      él los apunta en ~/.local/state/tmux-config/zsh.paquetes: ./uninstall zsh
 #      quita esos y no los que ya estaban.
 #   2. Descarga las páginas de tldr si no están (con --actualizar, de nuevo).
-#   3. Comprueba que zsh/.zshrc carga sin errores con esa versión de zsh.
+#   3. Comprueba que zsh/.zshrc carga sin errores con esa versión de zsh, y que
+#      zsh/zshenv no escribe nada (lo leen también ssh host comando, scp, rsync).
 #   4. Enlaza ~/.local/opt/tmux-config/zsh/.zshrc a este repo. ~/.zshrc no se
 #      toca: los panes de tmux arrancan zsh con ZDOTDIR en ese directorio, y
 #      "zsh" tecleado fuera de tmux sigue como lo trae la distro.
 #   5. Si quedó el ~/.zshrc enlazado de la versión anterior, lo quita y
 #      devuelve a su sitio tu ~/.zshrc de antes (el backup ~/.zshrc.bak.<fecha>).
-#   6. Con --global, zsh también fuera de tmux: enlaza ~/.zshenv a zsh/zshenv
-#      (que lleva a zsh a esta config) y tu shell de login pasa a ser zsh (con
-#      sudo), apuntando la de antes en ~/.local/state/tmux-config/zsh.global.
-#      Con --solo-tmux, deshace eso: vuelve tu shell de antes y tu ~/.zshenv.
+#   6. Con --global, zsh también fuera de tmux: tu shell de login pasa a ser zsh
+#      (con sudo), apuntando la de antes en ~/.local/state/tmux-config/zsh.global,
+#      y ~/.zshenv carga zsh/zshenv (que lleva a zsh a esta config). Antes, el
+#      plan avisa de lo que bash cargaba al entrar y zsh no leerá. Con
+#      --solo-tmux, deshace eso: vuelve tu shell de antes y tu ~/.zshenv.
 # Sin --global no cambia la shell de login: zsh arranca en los panes de tmux.
 set -euo pipefail
 
@@ -36,7 +38,7 @@ CONF_SRC="$REPO_DIR/zsh/.zshrc"
 . "$REPO_DIR/lib/comun.sh"
 CONF_DST="$TC_DIR/zsh/.zshrc"
 ZSHENV_SRC="$REPO_DIR/zsh/zshenv"
-ZSHENV="$HOME/.zshenv"
+ZSHENV_LINK="$TC_DIR/zsh/zshenv"
 SITIO="$(sitio zsh)"   # tmux o global: lo decide ./install
 
 MODO=instalar ACTUALIZAR=0
@@ -48,6 +50,55 @@ for a in "$@"; do
     esac
 done
 
+# ~/.zshenv es nuestro: el de ahora (zshenv_nuestro) o el enlace al repo de
+# antes, de este u otro clon. Se cambia o se quita sin backup
+zshenv_es_nuestro() { zshenv_nuestro "$ZSHENV" || es_del_repo "$ZSHENV" zsh/zshenv; }
+
+# que_es LÍNEA: qué hace una línea de bash, sin su valor, que puede ser un
+# secreto (export NVM_DIR, alias gs, función f, carga ~/.cargo/env, eval de
+# conda). Falla si no lo sabe
+que_es() {
+    local re_export='^[[:space:]]*export[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)'
+    local re_alias='^[[:space:]]*alias[[:space:]]+([^=[:space:]]+)='
+    local re_funcion='^[[:space:]]*(function[[:space:]]+)?([A-Za-z_][A-Za-z0-9_:.-]*)[[:space:]]*\(\)'
+    local re_var='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)='
+    local re_carga='(^|[[:space:];&|])\\?(\.|source)[[:space:]]+"?([^[:space:]";&|]+)'
+    local re_eval='eval[[:space:]]+"?\$\(([^[:space:])=]+)([[:space:])]|$)'
+    if [[ $1 =~ $re_export ]]; then echo "export ${BASH_REMATCH[1]}"
+    elif [[ $1 =~ $re_alias ]]; then echo "alias ${BASH_REMATCH[1]}"
+    elif [[ $1 =~ $re_funcion ]]; then echo "función ${BASH_REMATCH[2]}"
+    elif [[ $1 =~ $re_var ]]; then echo "${BASH_REMATCH[1]}="
+    elif [[ $1 =~ $re_carga ]]; then echo "carga ${BASH_REMATCH[3]}"
+    elif [[ $1 =~ $re_eval ]]; then echo "eval de ${BASH_REMATCH[1]##*/}"   # X=valor cmd: no
+    else return 1
+    fi
+}
+
+# Al pasar a --global: lo que bash carga al entrar y zsh no leerá. Lo que
+# añadiste a ~/.bashrc y ~/.bash_profile (lo que no trae /etc/skel),
+# ~/.bash_aliases (lo carga el ~/.bashrc de Debian y Ubuntu), ~/.bash_login y
+# ~/.bashrc.d; sin el bloque de vim --global ni lo que ya está en
+# ~/.zshrc.local. ~/.profile no: zsh/zshenv lo carga
+lo_de_bash() {
+    local f n l q otras items=()
+    for f in "$HOME/.bashrc" "$HOME/.bash_aliases" "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME"/.bashrc.d/*; do
+        [ -f "$f" ] || continue
+        otras=0
+        while IFS=$'\t' read -r n l; do
+            if q="$(que_es "$l")"; then items+=("${f/#$HOME/\~}:$n  $q"); else otras=$((otras + 1)); fi
+        done < <(awk -v skel="/etc/skel/${f#"$HOME"/}" -v loc="$HOME/.zshrc.local" -v ini="$BLOQUE_INI" -v fin="$BLOQUE_FIN" '
+            BEGIN { while ((getline l < skel) > 0) ya[l] = 1; while ((getline l < loc) > 0) ya[l] = 1 }
+            $0 == ini { d = 1 }
+            d { if ($0 == fin) d = 0; next }
+            /^[ \t]*(#|$)/ || ($0 in ya) { next }
+            { print NR "\t" $0 }' "$f")
+        [ "$otras" -eq 0 ] || items+=("${f/#$HOME/\~}: $otras $([ "$otras" -eq 1 ] && echo 'línea más' || echo 'líneas más')")
+    done
+    [ ${#items[@]} -gt 0 ] || return 0
+    [ ${#items[@]} -le 12 ] || items=("${items[@]:0:11}" "y $((${#items[@]} - 11)) más")
+    plan_linea aviso "zsh no leerá esto, que bash carga al entrar (lo que uses, cópialo a ~/.zshrc.local):" "${items[@]}"
+}
+
 # Lo de fuera de tmux en el plan de ./install, sin tocar nada: los paquetes los
 # enseña él, y ~/.zshrc no se toca
 plan() {
@@ -56,14 +107,16 @@ plan() {
     if [ "$SITIO" = global ]; then
         if [[ "$sh" != */zsh ]]; then
             plan_linea cambiar "tu shell de login: $sh → zsh, con esta config también fuera de tmux (para volver: ./install zsh --solo-tmux)"
-        elif ! link_is_ours "$ZSHENV_SRC" "$ZSHENV"; then
+        elif ! zshenv_es_nuestro; then
             plan_linea cambiar "zsh, que ya es tu shell de login, carga esta config también fuera de tmux$([ -e "$HOME/.zshrc" ] && echo ', no tu ~/.zshrc')"
         else
             plan_linea ya "zsh también fuera de tmux (es tu shell de login)"
         fi
-        if { [ -e "$ZSHENV" ] || [ -L "$ZSHENV" ]; } && ! link_is_ours "$ZSHENV_SRC" "$ZSHENV"; then
+        if { [ -e "$ZSHENV" ] || [ -L "$ZSHENV" ]; } && ! zshenv_es_nuestro; then
             plan_linea backup "${ZSHENV/#$HOME/\~} no es de este repo: se guarda como ~/.zshenv.bak.<fecha>"
         fi
+        # Si zsh ya era la shell de login, bash no se usaba al entrar: nada cambia
+        es_global zsh || [[ "$sh" == */zsh ]] || lo_de_bash
     elif es_global zsh; then
         prev="$(cat "$(global_file zsh)")"
         if [ -n "$prev" ] && [[ "$sh" == */zsh ]]; then
@@ -75,28 +128,72 @@ plan() {
 }
 if [ "$MODO" = plan ]; then plan; exit 0; fi
 
+# Lo nuestro de ~/.zshenv con --global (de ZSHENV_MARCA a ZSHENV_FIN)
+texto_zshenv() {
+    printf '%s\n' "$ZSHENV_MARCA" \
+        '# Lo pone ./install zsh --global (lo quitan --solo-tmux y ./uninstall zsh):' \
+        '# zsh, también fuera de tmux, con la config del repo (zsh/zshenv). Si el repo' \
+        '# se ha movido o borrado, lo avisa en vez de dejar zsh sin config.' \
+        'if [[ -r ~/.local/opt/tmux-config/zsh/zshenv ]]; then' \
+        '    . ~/.local/opt/tmux-config/zsh/zshenv' \
+        'elif [[ -o interactive ]]; then' \
+        '    print -u2 "tmux-config: no encuentro la config de zsh (¿has movido o borrado el repo?). En su carpeta: ./install zsh --global"' \
+        'fi' \
+        "$ZSHENV_FIN"
+}
+
+# ~/.zshenv: el nuestro (de cualquier versión, también el enlace al repo de
+# antes) se cambia sin más, conservando lo que alguien añadió debajo; otro, se
+# aparta como ~/.zshenv.bak.<fecha>. Se escribe aparte y se mueve: un zsh que
+# arranque a la vez no lo lee a medias
+poner_zshenv() {
+    local backup nuevo
+    link_with_backup "$ZSHENV_SRC" "$ZSHENV_LINK" zsh/zshenv
+    nuevo="$(texto_zshenv)"
+    zshenv_nuestro "$ZSHENV" && nuevo="$nuevo"$'\n'"$(zshenv_resto "$ZSHENV")"
+    nuevo="${nuevo%$'\n'}"
+    if zshenv_nuestro "$ZSHENV" && [ "$(cat "$ZSHENV")" = "$nuevo" ]; then
+        info "~/.zshenv ya carga esta config"
+        return
+    fi
+    if ! zshenv_es_nuestro && { [ -e "$ZSHENV" ] || [ -L "$ZSHENV" ]; }; then
+        backup="$ZSHENV.bak.$(date +%Y%m%d-%H%M%S)"
+        mv "$ZSHENV" "$backup"
+        info "config anterior guardada en $backup"
+    fi
+    printf '%s\n' "$nuevo" > "$ZSHENV.tmp"
+    mv -f "$ZSHENV.tmp" "$ZSHENV"
+    info "~/.zshenv carga esta config (zsh/zshenv) y avisa si el repo se mueve"
+}
+
 # --global: zsh pasa a ser la shell de login, y ~/.zshenv lo lleva a esta
-# config. Primero la shell: si eso falla (sin sudo, usuario de LDAP...), no queda
-# nada a medias. Luego se apunta la de antes, para que --solo-tmux y ./uninstall
-# zsh la devuelvan (si ya era zsh, no se apunta nada)
+# config. Antes de cambiar la shell se apunta la de antes, para que --solo-tmux y
+# ./uninstall zsh la devuelvan (si ya era zsh, vacío): así ningún corte deja la
+# shell cambiada sin apuntar. Si el cambio falla (sin sudo, usuario de LDAP...),
+# se borra lo apuntado y no queda nada a medias
 fuera_global() {
-    local sh zsh_bin
+    local sh zsh_bin st nuevo=0
     sh="$(shell_login)"
     zsh_bin="$(command -v zsh)"
-    if [[ "$sh" != */zsh ]]; then
-        cambiar_shell "$zsh_bin"
-        info "tu shell de login es $zsh_bin: al entrar por SSH (en las sesiones nuevas), zsh con esta config"
-    fi
+    st="$(global_file zsh)"
     if ! es_global zsh; then
         mkdir -p "$STATE_DIR"
-        if [[ "$sh" == */zsh ]]; then : > "$(global_file zsh)"; else echo "$sh" > "$(global_file zsh)"; fi
+        if [[ "$sh" == */zsh ]]; then : > "$st"; else echo "$sh" > "$st"; fi
+        nuevo=1
     fi
-    link_with_backup "$ZSHENV_SRC" "$ZSHENV"
+    if [[ "$sh" != */zsh ]]; then
+        # Ctrl+C en la contraseña de sudo: tampoco queda apuntado
+        [ "$nuevo" -eq 0 ] || trap 'rm -f "$st"; exit 130' INT TERM HUP
+        ( cambiar_shell "$zsh_bin" ) || { [ "$nuevo" -eq 0 ] || rm -f "$st"; exit 1; }
+        trap - INT TERM HUP
+        info "tu shell de login es $zsh_bin: al entrar por SSH (en las sesiones nuevas), zsh con esta config"
+    fi
+    poner_zshenv
     info "zsh también fuera de tmux; para volver a solo tmux: ./install zsh --solo-tmux"
 }
 
 # --solo-tmux tras --global: vuelve la shell de login de antes y tu ~/.zshenv. El
-# ~/.zshenv, también si es de otro clon del repo (es_del_repo)
+# ~/.zshenv, también si es el enlace de antes a otro clon del repo
 fuera_solo_tmux() {
     local prev
     prev="$(cat "$(global_file zsh)")"
@@ -104,11 +201,8 @@ fuera_solo_tmux() {
         cambiar_shell "$prev"
         info "tu shell de login vuelve a ser $prev (en las sesiones nuevas)"
     fi
-    if es_del_repo "$ZSHENV" zsh/zshenv; then
-        rm "$ZSHENV"
-        info "enlace ~/.zshenv quitado"
-        restore_backup "$ZSHENV" zsh/zshenv
-    fi
+    if zshenv_es_nuestro; then quitar_zshenv; fi
+    if es_del_repo "$ZSHENV_LINK" zsh/zshenv; then rm "$ZSHENV_LINK"; fi
     rm -f "$(global_file zsh)"
 }
 
@@ -137,21 +231,16 @@ tldr_a_mano() {
         tldr tar >/dev/null 2>&1
 }
 
-# Carga la config en un zsh interactivo aislado (HOME y ZDOTDIR temporales):
-# no toca tu historial ni tu ~/.zshrc.local. Con un terminal de verdad (script):
-# sin él, el fzf de EPEL avisa "can't change option: zle" aunque todo esté bien.
+# .zshrc y zshenv cargan limpios (zsh_valida). Si no y ya están enlazados (un
+# git pull a mano), los zsh nuevos ya los cargan así: lo dice
 check_conf() {
-    local tmp err
-    zsh -n "$CONF_SRC" || die "$CONF_SRC tiene errores de sintaxis; no se ha enlazado nada"
-    if ! command -v script >/dev/null; then
-        aviso "falta el comando script: solo se ha comprobado la sintaxis"
-        return
+    local err
+    if ! err="$(zsh_valida "$CONF_SRC" "$ZSHENV_SRC")"; then
+        link_is_ours "$CONF_SRC" "$CONF_DST" &&
+            die "$err"$'\n'"y es la config que ya cargan los zsh nuevos (el enlace apunta al repo): arréglala o vuelve a la versión anterior con git"
+        die "$err"$'\n'"no se ha enlazado nada"
     fi
-    tmp="$(mktemp -d)"
-    ln -s "$CONF_SRC" "$tmp/.zshrc"
-    err="$(HOME="$tmp" ZDOTDIR="$tmp" script -qec "zsh -i -c exit" /dev/null 2>&1 </dev/null)" || true
-    rm -rf "$tmp"
-    [ -z "$err" ] || die "$CONF_SRC no carga limpio con $(zsh --version); no se ha enlazado nada:"$'\n'"$err"
+    command -v script >/dev/null || aviso "falta el comando script: de zsh/.zshrc solo se ha comprobado la sintaxis"
 }
 
 command -v zsh >/dev/null || die "falta zsh: ./install zsh lo instala"
@@ -168,7 +257,7 @@ fi
 check_conf
 info "config válida con $(zsh --version)"
 
-link_with_backup "$CONF_SRC" "$CONF_DST"
+link_with_backup "$CONF_SRC" "$CONF_DST" zsh/.zshrc
 unlink_old "$CONF_SRC" "$HOME/.zshrc" || true
 
 # Los panes de tmux arrancan en zsh si ~/.tmux.conf es el de este repo. En los

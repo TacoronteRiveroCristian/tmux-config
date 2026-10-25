@@ -2,8 +2,9 @@
 # shellcheck disable=SC2016  # comillas simples: se expanden dentro de "su -c"
 # tests/actualizar.sh — ./actualizar con cambios de verdad en upstream, dentro del
 # contenedor: pull, relanzarse con la versión nueva, qué detecta como
-# instalado, --actualizar, con terminal las preguntas ([S/n], y solo tmux o
-# también fuera), y que con un pull imposible no instale nada.
+# instalado, que no trae un zsh que no carga, --actualizar, con terminal las
+# preguntas ([S/n], y solo tmux o también fuera), y que con un pull imposible
+# no instale nada.
 . /tests/comun.sh
 base
 upstream
@@ -34,6 +35,18 @@ paso "otra vez, sin cambios"
 t0=$(date +%s); out="$(as u "cd $D && ./actualizar")"; r=$?
 check "idempotente: no reinstala paquetes ni pide sudo" bash -c "[ $r -eq 0 ] && grep -q 'nada que confirmar' <<<\"\$1\" && ! grep -qE 'apt-get update|instalando' <<<\"\$1\"" _ "$out"
 echo "      (tardó $(( $(date +%s) - t0 ))s)"
+
+# El pull activa la config nueva (los enlaces apuntan al repo): un zsh/.zshrc
+# que no carga no debe llegar, y cuando upstream lo arregla, sí se actualiza
+paso "upstream trae un zsh/.zshrc roto (u): no se actualiza"
+h0="$(as u "git -C $D rev-parse HEAD")"
+commit_upstream "zshrc roto" "echo 'if [[ -n roto' >> zsh/.zshrc"
+out="$(as u "cd $D && ./actualizar -y")"; r=$?
+echo "$out" | grep -E 'ERROR|versión nueva|sigues' | sangra ""
+check "no hace el pull, y dice por qué" bash -c "[ $r -ne 0 ] && grep -q 'zsh/.zshrc (la versión nueva) tiene errores de sintaxis' <<<\"\$1\" && grep -q 'sigues con la versión de antes' <<<\"\$1\" && [ \"\$(su - u -c 'git -C $D rev-parse HEAD')\" = '$h0' ]" _ "$out"
+commit_upstream "zshrc arreglado" "sed -i '\$d' zsh/.zshrc"
+out="$(as u "cd $D && ./actualizar -y")"; r=$?
+check "arreglado en upstream: ahora sí se actualiza" bash -c "[ $r -eq 0 ] && [ \"\$(su - u -c 'git -C $D rev-parse HEAD')\" = \"\$(git -C /srv/src rev-parse HEAD)\" ]"
 
 paso "solo tmux (u2), y --actualizar"
 as u2 "cd $D && ./install -y tmux" >/dev/null; as u2 "git -C $D pull -q"

@@ -91,15 +91,18 @@ pkg_installed() {
 
 link_is_ours() { [ -L "$2" ] && [ "$(readlink "$2")" = "$1" ]; }
 
-# link_with_backup SRC DST: enlaza DST -> SRC. Si DST ya existía y no era
-# nuestro, lo guarda como DST.bak.<fecha>.
+# link_with_backup SRC DST [REL]: enlaza DST -> SRC. Si DST ya existía y no era
+# nuestro, lo guarda como DST.bak.<fecha>. Con REL, si DST es un enlace a REL en
+# otro clon del repo, o en uno movido o borrado (es_del_repo), lo cambia sin backup
 link_with_backup() {
-    local src="$1" dst="$2" backup
+    local src="$1" dst="$2" rel="${3:-}" backup
     if link_is_ours "$src" "$dst"; then
         info "${dst/#$HOME/\~} ya apunta a este repo"
         return
     fi
-    if [ -e "$dst" ] || [ -L "$dst" ]; then
+    if [ -n "$rel" ] && es_del_repo "$dst" "$rel"; then
+        rm "$dst"
+    elif [ -e "$dst" ] || [ -L "$dst" ]; then
         backup="$dst.bak.$(date +%Y%m%d-%H%M%S)"
         mv "$dst" "$backup"
         info "config anterior guardada en $backup"
@@ -250,6 +253,61 @@ cambiar_shell() {
     grep -qxF "$1" /etc/shells || die "$1 no está en /etc/shells: tu shell de login no se cambia"
     need_sudo "cambiar tu shell de login"
     $SUDO usermod -s "$1" "$(id -un)" || die "no se pudo cambiar tu shell de login a $1"
+}
+
+# ~/.zshenv de zsh --global: un fichero propio que carga zsh/zshenv (por
+# ~/.local/opt/tmux-config/zsh/zshenv), no un enlace al repo como antes: si el
+# repo se mueve, un enlace colgando deja zsh sin config y con el asistente de
+# usuario nuevo. Lo nuestro va de la primera línea (ZSHENV_MARCA, así se
+# reconoce) a ZSHENV_FIN; lo de debajo (rustup añade ahí su línea, o tú) se
+# conserva al cambiarlo y al quitarlo
+ZSHENV="$HOME/.zshenv"
+ZSHENV_MARCA="# ~/.zshenv de tmux-config"
+ZSHENV_FIN="# Hasta aquí, tmux-config. Lo de debajo es tuyo: se conserva."
+zshenv_nuestro() { [ -f "$1" ] && [ ! -L "$1" ] && [ "$(head -n 1 "$1")" = "$ZSHENV_MARCA" ]; }
+zshenv_resto() { awk -v fin="$ZSHENV_FIN" 'f; $0 == fin { f = 1 }' "$1"; }
+
+# quitar_zshenv: quita el ~/.zshenv de --global (o el enlace de antes) y
+# devuelve el tuyo, si había un backup. Si alguien añadió algo debajo, se queda
+# eso solo
+quitar_zshenv() {
+    local resto=""
+    zshenv_nuestro "$ZSHENV" && resto="$(zshenv_resto "$ZSHENV")"
+    if [ -n "$resto" ]; then
+        printf '%s\n' "$resto" > "$ZSHENV.tmp"
+        mv -f "$ZSHENV.tmp" "$ZSHENV"
+        info "~/.zshenv: quitado lo de tmux-config; se queda lo que se añadió debajo"
+    else
+        rm "$ZSHENV"
+        info "~/.zshenv quitado"
+        restore_backup "$ZSHENV" zsh/zshenv
+    fi
+}
+
+# zsh_valida ZSHRC ZSHENV: que la config de zsh cargue limpia antes de enlazarla
+# (./install zsh) o de traerla (./actualizar). La sintaxis de los dos; ZSHRC,
+# cargado en un zsh interactivo aislado (HOME y ZDOTDIR temporales: no toca tu
+# historial ni tu ~/.zshrc.local) con un terminal de verdad (script: sin él, el
+# fzf de EPEL avisa "can't change option: zle" aunque todo esté bien); y ZSHENV,
+# que leen todos los zsh (también "ssh host comando", scp y rsync), sin escribir
+# nada. Si falla, escribe qué y devuelve 1. Sin el comando script, solo la sintaxis
+zsh_valida() {
+    local rc="$1" env="$2" tmp out
+    out="$(zsh -n "$rc" 2>&1)" || { printf '%s tiene errores de sintaxis:\n%s\n' "$rc" "$out"; return 1; }
+    out="$(zsh -n "$env" 2>&1)" || { printf '%s tiene errores de sintaxis:\n%s\n' "$env" "$out"; return 1; }
+    tmp="$(mktemp -d)"
+    cp "$env" "$tmp/.zshenv"
+    # sin ZDOTDIR: dentro de tmux viene exportado, y zsh no leería $tmp/.zshenv
+    out="$(cd / && env -u ZDOTDIR HOME="$tmp" zsh -c : 2>&1 </dev/null)" || out="${out:-sale con error}"
+    rm -rf "$tmp"
+    [ -z "$out" ] || { printf '%s escribe algo en "zsh -c" (rompería scp y rsync):\n%s\n' "$env" "$out"; return 1; }
+    command -v script >/dev/null || return 0
+    tmp="$(mktemp -d)"
+    cp "$rc" "$tmp/.zshrc"
+    out="$(HOME="$tmp" ZDOTDIR="$tmp" script -qec "zsh -i -c exit" /dev/null 2>&1 </dev/null)" || true
+    out="${out//$tmp\/.zshrc/$rc}"
+    rm -rf "$tmp"
+    [ -z "$out" ] || { printf '%s no carga limpio con %s:\n%s\n' "$rc" "$(zsh --version)" "$out"; return 1; }
 }
 
 # El bloque de vim --global al final de ~/.bashrc, entre las líneas BLOQUE_INI y

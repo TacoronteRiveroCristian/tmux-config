@@ -11,7 +11,9 @@
 # fuera de tmux nada del repo, Alt+d (buscar en todo el disco) con fd y bat, un .py en neovim (resaltado, pyright), los
 # servidores LSP en la versión del registro fijado, que sudoedit no deja su
 # historial de deshacer en el HOME, tldr, que bash no se toca, --global (zsh de
-# login y neovim en ~/.bashrc, también fuera de tmux, con Alt+h) y --solo-tmux, que lo
+# login y neovim en ~/.bashrc, también fuera de tmux, con Alt+h; el aviso de lo
+# de ~/.bashrc que zsh no leerá, "ssh host comando" como bash, el ~/.zshenv de
+# antes que se migra y el repo movido) y --solo-tmux, que lo
 # deja como estaba, y que uninstall no deja nada, deshace --global, respeta lo
 # que ya había y no cierra un tmux abierto.
 . /tests/comun.sh
@@ -233,11 +235,32 @@ sh0="$(shell_de)"
 st="$H/.local/state/tmux-config"
 # Lo que bash lee al entrar (/etc/profile.d): el zsh de login también debe verlo
 echo 'export TC_PERFIL_D=si' > /etc/profile.d/tc-prueba.sh
+# Lo tuyo en ~/.bashrc, que zsh no leerá: el plan lo avisa, sin valores (un
+# secreto), sin lo que trae /etc/skel ni lo que ya está en ~/.zshrc.local
+cat >> "$H/.bashrc" <<'B'
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+export TC_SECRETO=valor-que-no-debe-salir
+alias gs='git status'
+B
+echo "alias gs='git status'" > "$H/.zshrc.local"; chown "$U:" "$H/.zshrc.local"
+b0="$(bashfiles)"
 out="$(as "$U" "cd $D && ./install -y --global zsh vim")"; r=$?
-echo "$out" | grep -E '^  cambiar|AVISO|ERROR' | sangra ""
+echo "$out" | grep -E '^  (cambiar|aviso)|^ {13}~/|AVISO|ERROR' | sangra ""
 check "install --global" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
 check "el plan dice lo que cambia fuera de tmux" bash -c "grep -q '^  cambiar *tu shell de login: $sh0 → zsh' <<<\"\$1\" && grep -q '^  cambiar *~/.bashrc: un bloque' <<<\"\$1\"" _ "$out"
+check "el plan avisa de lo de ~/.bashrc que zsh no leerá, sin valores" bash -c "grep -q 'zsh no leerá esto' <<<\"\$1\" && grep -qE '~/.bashrc:[0-9]+  export NVM_DIR' <<<\"\$1\" && grep -q 'carga \$NVM_DIR/nvm.sh' <<<\"\$1\" && grep -q 'export TC_SECRETO' <<<\"\$1\" && ! grep -qE 'valor-que-no-debe-salir|alias gs|HISTCONTROL' <<<\"\$1\"" _ "$out"
 check "la shell de login es zsh" bash -c "[[ \$(getent passwd $U | cut -d: -f7) == */zsh ]]"
+check "~/.zshenv es un fichero (no un enlace al repo) que carga zsh/zshenv" bash -c "[ -f $H/.zshenv ] && [ ! -L $H/.zshenv ] && head -1 $H/.zshenv | grep -qx '# ~/.zshenv de tmux-config' && [ \"\$(readlink $H/.local/opt/tmux-config/zsh/zshenv)\" = $H/GitHub/personal/tmux-config/zsh/zshenv ]"
+# Lo que se añade debajo de ~/.zshenv (rustup lo hace) se conserva al reinstalar
+echo 'export TC_DEBAJO=si' >> "$H/.zshenv"
+out="$(as "$U" "cd $D && ./install -y zsh")"; r=$?
+check "lo añadido debajo de ~/.zshenv se conserva al reinstalar, y zsh lo lee" bash -c "[ $r -eq 0 ] && tail -1 $H/.zshenv | grep -qx 'export TC_DEBAJO=si' && [ \"\$(su - $U -c 'echo \$TC_DEBAJO')\" = si ]"
+# "ssh host comando" (zsh -c sin login, como lo lanza sshd): como bash, un * sin
+# coincidencias pasa tal cual, y ~/bin en el PATH
+mkdir -p "$H/bin"; chown "$U:" "$H/bin"
+f="$(cd / && su "$U" -c 'echo /tmp/noexiste-*; echo "path=$PATH"' 2>&1)"; sangra "ssh comando: " <<<"${f:0:300}"
+check "\"ssh host comando\": un * sin coincidencias pasa tal cual, y ~/bin en el PATH" bash -c "grep -qx '/tmp/noexiste-\*' <<<\"\$1\" && grep -q 'path=\(.*:\)\?$H/bin:' <<<\"\$1\"" _ "$f"
 # Como al entrar por SSH: la shell de login, interactiva, fuera de tmux
 f="$(su - "$U" -c 'exec $SHELL -lic "echo shell=\${ZSH_VERSION:+zsh}; command -v vim; echo EDITOR=\$EDITOR; type z; echo perfil=\$TC_PERFIL_D"' 2>&1)"; sangra "fuera: " <<<"$f"
 check "fuera de tmux, zsh con la config del repo (vim, EDITOR y z)" bash -c "grep -q shell=zsh <<<\"\$1\" && grep -q '$H/.local/opt/tmux-config/bin/vim' <<<\"\$1\" && grep -q 'EDITOR=$H/.local/opt/tmux-config/bin/nvim' <<<\"\$1\" && grep -q 'z is' <<<\"\$1\"" _ "$f"
@@ -254,15 +277,30 @@ check "fuera de tmux, Alt+h abre la guía y q vuelve a la línea" bash -c "grep 
 f="$(su - "$U" -c 'bash -ic "command -v vim; echo EDITOR=\$EDITOR"' 2>&1)"
 check "fuera de tmux, en bash, vim y EDITOR son el neovim del repo" bash -c "grep -q '$H/.local/opt/tmux-config/bin/vim' <<<\"\$1\" && grep -q 'EDITOR=$H/.local/opt/tmux-config/bin/nvim' <<<\"\$1\"" _ "$f"
 check "\"ssh host comando\" no saca nada más" [ "$(su - "$U" -c 'echo hola' 2>&1)" = hola ]
+# Como quien lo tenía de antes: ~/.zshenv, un enlace al repo. ./actualizar lo
+# cambia por el fichero, sin preguntar
+as "$U" "ln -sfn $D/zsh/zshenv ~/.zshenv" >/dev/null
 out="$(as "$U" "cd $D && ./actualizar -y")"; r=$?
 check "./actualizar lo mantiene sin preguntar ni cambiar nada" bash -c "[ $r -eq 0 ] && grep -q 'nada que confirmar' <<<\"\$1\" && [[ \$(getent passwd $U | cut -d: -f7) == */zsh ]] && [ \$(grep -c '^# >>> tmux-config' $H/.bashrc) -eq 1 ]" _ "$out"
+check "y cambia el ~/.zshenv de antes (enlace) por el fichero" bash -c "[ -f $H/.zshenv ] && [ ! -L $H/.zshenv ] && ! ls $H/.zshenv.bak.* >/dev/null 2>&1"
+# Repo movido: al entrar, zsh lo avisa en vez de abrir el asistente de usuario
+# nuevo (y sin config), y "ssh host comando" sigue limpio
+mv "$H/GitHub/personal/tmux-config" "$H/GitHub/personal/tmux-config.movido"
+check "repo movido: \"ssh host comando\" sigue limpio" [ "$(su - "$U" -c 'echo hola' 2>&1)" = hola ]
+as "$U" "tmux -L movido -f /dev/null new-session -d -s m -x 150 -y 20 'env -u TMUX \$SHELL -l'; sleep $w
+         tmux -L movido capture-pane -p -t m > ~/movido.txt; tmux -L movido kill-server" >/dev/null
+sangra "al entrar: " < <(grep -v '^$' "$H/movido.txt")
+check "repo movido: al entrar lo avisa, sin el asistente de zsh" bash -c "grep -q 'no encuentro la config de zsh' $H/movido.txt && ! grep -q 'Z Shell' $H/movido.txt"
+mv "$H/GitHub/personal/tmux-config.movido" "$H/GitHub/personal/tmux-config"
 
 paso "./install -y --solo-tmux zsh vim"
+echo 'export TC_DEBAJO=si' >> "$H/.zshenv"   # lo de debajo se queda; lo demás, fuera
 out="$(as "$U" "cd $D && ./install -y --solo-tmux zsh vim")"; r=$?
 echo "$out" | grep -E '^  cambiar|AVISO|ERROR' | sangra ""
 check "install --solo-tmux" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
 check "vuelve la shell de login de antes ($sh0)" [ "$(shell_de)" = "$sh0" ]
-check "sin ~/.zshenv, y bash como estaba" bash -c "[ ! -e $H/.zshenv ] && [ ! -L $H/.zshenv ] && [ \"\$1\" = \"\$2\" ]" _ "$(bashfiles)" "$b0"
+check "de ~/.zshenv queda solo lo añadido debajo, y bash como estaba" bash -c "[ \"\$(cat $H/.zshenv)\" = 'export TC_DEBAJO=si' ] && [ ! -L $H/.zshenv ] && [ \"\$1\" = \"\$2\" ]" _ "$(bashfiles)" "$b0"
+rm -f "$H/.zshenv"
 f="$(su - "$U" -c 'bash -ic "command -v vim nvim; type z; echo EDITOR=\$EDITOR"' 2>&1)"
 check "fuera de tmux, otra vez nada del repo" bash -c "! grep -q tmux-config <<<\"\$1\" && ! grep -q 'z is' <<<\"\$1\"" _ "$f"
 check "sin marcas de --global" bash -c "[ ! -e $st/zsh.global ] && [ ! -e $st/vim.global ] && [ ! -e $st/bashrc.antes ]"
@@ -301,7 +339,7 @@ if [[ " $antes " != *" tmux "* ]]; then
     fi
 fi
 check "sin páginas de tldr" [ ! -e "$H/.cache/tealdeer" ]
-check "uninstall deshace --global: la shell de antes, sin ~/.zshenv ni marcas" bash -c "[ \"\$(getent passwd $U | cut -d: -f7)\" = '$sh0' ] && [ ! -L $H/.zshenv ] && [ ! -e $st/zsh.global ] && [ ! -e $st/vim.global ] && [ ! -e $st/bashrc.antes ]"
+check "uninstall deshace --global: la shell de antes, sin ~/.zshenv ni marcas" bash -c "[ \"\$(getent passwd $U | cut -d: -f7)\" = '$sh0' ] && [ ! -e $H/.zshenv ] && [ ! -L $H/.zshenv ] && [ ! -e $st/zsh.global ] && [ ! -e $st/vim.global ] && [ ! -e $st/bashrc.antes ]"
 # zsh, que instaló él: se va con la shell de login devuelta (si no, se quedaría)
 [ -n "$DESDE" ] || check "quita zsh, que instaló él" bash -c "! dpkg-query -W -f='\${Status}' zsh 2>/dev/null | grep -q 'install ok installed'"
 [ "$PERFIL" = pi-trixie ] && check "conserva el npm de NodeSource" bash -c "command -v npm >/dev/null"

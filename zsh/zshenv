@@ -1,6 +1,8 @@
-# ~/.zshenv con ./install zsh --global (es un enlace a este fichero): zsh, también
-# fuera de tmux, carga la config del repo de donde la enlaza ./install zsh, igual
-# que los panes. Sin exportar: solo para este zsh (cada zsh lo vuelve a leer).
+# zsh/zshenv — con ./install zsh --global, ~/.zshenv carga este fichero (por el
+# enlace ~/.local/opt/tmux-config/zsh/zshenv): zsh, también fuera de tmux, carga
+# la config del repo de donde la enlaza ./install zsh, igual que los panes. Sin
+# exportar: solo para este zsh (cada zsh lo vuelve a leer). Lo leen todos los zsh
+# de tu usuario, también "ssh host comando", scp y rsync: no puede escribir nada.
 # ./install zsh --solo-tmux y ./uninstall zsh lo quitan.
 ZDOTDIR=~/.local/opt/tmux-config/zsh
 
@@ -10,4 +12,15 @@ ZDOTDIR=~/.local/opt/tmux-config/zsh
 # "ssh host comando" no es de login: no lo lee, como bash.
 if [[ -o login && -z $TMUX ]]; then
     emulate sh -c '. /etc/profile; [ -r ~/.profile ] && . ~/.profile'
+fi
+
+# "ssh host comando" (zsh -c, que no lee .zshrc), como con bash: un * o ? sin
+# coincidencias se pasa tal cual (rm -f /tmp/x*, URLs con ?), y ~/.local/bin y
+# ~/bin están en el PATH (en Rocky, bash los añade desde ~/.bashrc). Solo si
+# faltan: un zsh -c lanzado desde tu sesión (:! de neovim) conserva su PATH, con
+# un venv delante. Los scripts de zsh, como siempre
+if [[ -n $ZSH_EXECUTION_STRING && ! -o interactive ]]; then
+    setopt no_nomatch
+    if [[ -d ~/bin ]] && (( ! ${path[(Ie)$HOME/bin]} )); then path=(~/bin $path); fi
+    if [[ -d ~/.local/bin ]] && (( ! ${path[(Ie)$HOME/.local/bin]} )); then path=(~/.local/bin $path); fi
 fi

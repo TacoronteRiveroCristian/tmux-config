@@ -7,8 +7,8 @@
 #   1. Quita ~/.local/opt/tmux-config/zsh/.zshrc si es un enlace a este repo, y
 #      ~/.zshrc si lo es (lo enlazaba la versión anterior); si es otra cosa, no
 #      la toca.
-#   2. Con --global: tu shell de login vuelve a ser la de antes y quita el
-#      enlace ~/.zshenv (vuelve el tuyo, si había un backup).
+#   2. Con --global: tu shell de login vuelve a ser la de antes y quita
+#      ~/.zshenv (vuelve el tuyo, si había un backup).
 #   3. En los tmux en marcha de este usuario, los panes nuevos vuelven a la
 #      shell de login.
 #   4. Desinstala los paquetes que instaló ./install zsh (los apuntados en
@@ -24,7 +24,6 @@ CONF_SRC="$REPO_DIR/zsh/.zshrc"
 
 . "$REPO_DIR/lib/comun.sh"
 CONF_DIR="$TC_DIR/zsh"
-ZSHENV="$HOME/.zshenv"
 TLDR_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/tealdeer"
 
 # Con --global: la shell de login de antes, si hay que devolverla (si ya era
@@ -69,9 +68,9 @@ if [ -d "$CONF_DIR" ]; then
     fi
 fi
 
-# ~/.zshenv de --global, también si es de otro clon del repo
+# ~/.zshenv de --global: el de ahora, o el enlace de antes (también a otro clon)
 zshenv=0
-es_del_repo "$ZSHENV" zsh/zshenv && zshenv=1
+{ zshenv_nuestro "$ZSHENV" || es_del_repo "$ZSHENV" zsh/zshenv; } && zshenv=1
 
 if [ ${#enlaces[@]} -eq 0 ] && [ "$viejo" -eq 0 ] && [ "$quitar_dir" -eq 0 ] && [ ${#sockets[@]} -eq 0 ] && [ ${#quitar[@]} -eq 0 ] &&
    [ -z "$prev" ] && [ "$zshenv" -eq 0 ] && ! es_global zsh; then
@@ -82,7 +81,7 @@ fi
 
 echo "Se va a:"
 [ -z "$prev" ] || echo "  - devolverte tu shell de login de antes: $prev (zsh lo era por --global)"
-[ "$zshenv" -eq 0 ] || echo "  - quitar el enlace ~/.zshenv -> $(readlink "$ZSHENV") y devolver el tuyo, si hay un backup"
+[ "$zshenv" -eq 0 ] || echo "  - quitar lo de --global de ~/.zshenv (lo que se añadió debajo se queda) y devolver el tuyo, si hay un backup"
 for f in ${enlaces[@]+"${enlaces[@]}"}; do
     echo "  - quitar el enlace ${f/#$HOME/\~} -> $CONF_SRC"
 done
@@ -104,11 +103,9 @@ if [ -n "$prev" ]; then
     cambiar_shell "$prev"
     info "tu shell de login vuelve a ser $prev (en las sesiones nuevas)"
 fi
-if [ "$zshenv" -eq 1 ]; then
-    rm "$ZSHENV"
-    info "enlace ~/.zshenv quitado"
-    restore_backup "$ZSHENV" zsh/zshenv
-fi
+[ "$zshenv" -eq 0 ] || quitar_zshenv
+# Lo que carga ese ~/.zshenv (también si era de otro clon)
+if es_del_repo "$CONF_DIR/zshenv" zsh/zshenv; then rm "$CONF_DIR/zshenv"; fi
 rm -f "$(global_file zsh)"
 
 for f in ${enlaces[@]+"${enlaces[@]}"}; do

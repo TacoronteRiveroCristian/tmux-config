@@ -153,7 +153,13 @@ elif [ "$SI" -eq 0 ]; then
     read -r -p "¿Seguir? [S/n] " r || r=n   # Ctrl+D: no
     case "${r,,}" in
         ""|s|si|sí|y|yes) ;;
-        *) info "cancelado: no se ha tocado nada"; exit 1 ;;
+        # Desde ./actualizar, el pull ya está hecho: la config nueva ya se usa
+        *) if [ -n "${TC_TRAS_PULL:-}" ]; then
+               info "cancelado: no se ha instalado nada (el repo sí está al día: la config nueva ya se usa)"
+           else
+               info "cancelado: no se ha tocado nada"
+           fi
+           exit 1 ;;
     esac
 fi
 

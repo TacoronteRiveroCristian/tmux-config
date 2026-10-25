@@ -17,7 +17,7 @@ tests/run -l               # la lista
 | `ubuntu-server` | Ubuntu Server 24.04, con tmux, vim y bash-completion de serie (uninstall debe respetarlos) |
 | `ubuntu-2204` | Ubuntu 22.04 (node 12, sin tealdeer), en español: apt cambia su salida |
 | `migracion` | La versión que enlazaba `~/.zshrc`, y `git pull && ./actualizar` |
-| `actualizar` | `./actualizar` con cambios de verdad en upstream, un paquete nuevo en la tabla, y con terminal la pregunta `[S/n]` y la de solo tmux o también fuera |
+| `actualizar` | `./actualizar` con cambios de verdad en upstream, un `zsh/.zshrc` roto que no debe llegar, un paquete nuevo en la tabla, y con terminal la pregunta `[S/n]` y la de solo tmux o también fuera |
 
 En cada máquina comprueba que `./install --check` no toca nada, que sin
 terminal y sin `-y` no instala, que un paquete tuyo que choca con uno del repo
@@ -31,7 +31,11 @@ registro de mason fijado (y que uno en otra versión vuelve a ella), que
 `sudoedit` no deja en el HOME el historial de deshacer de la copia, que `tldr`
 funciona, que bash no se toca, que `--global` deja zsh de shell de login y
 neovim en `~/.bashrc` (fuera de tmux, igual que dentro, y `Alt+h` abre la guía;
-`ssh host comando`, sin ruido; `./actualizar` lo mantiene) y `--solo-tmux` lo
+el plan avisa de lo de `~/.bashrc` que zsh no leerá, sin enseñar valores;
+`ssh host comando`, sin ruido y como bash con un `*` sin coincidencias;
+`./actualizar` lo mantiene y migra el `~/.zshenv` de antes; lo añadido debajo
+de `~/.zshenv` se conserva al reinstalar y al quitarlo; con el repo
+movido, zsh avisa al entrar en vez de abrir su asistente) y `--solo-tmux` lo
 deja todo como estaba, y
 que uninstall no deja restos, deshace `--global`, respeta lo que ya estaba y no
 cierra un tmux abierto.

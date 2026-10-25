@@ -24,7 +24,7 @@ con `Alt+h`: dentro de tmux y, con zsh global, también fuera.
 3. Ese zsh pone en el PATH los comandos del repo (`nvim`, `vi`, `vim`,
    `tmux-guia`) y neovim como editor, con su config aparte (`NVIM_APPNAME`).
 4. Fuera de tmux no llega nada de eso: ni el PATH, ni zsh, ni neovim. Salvo
-   con `--global`: zsh pasa a ser tu shell de login (con `~/.zshenv` → repo) y
+   con `--global`: zsh pasa a ser tu shell de login (`~/.zshenv` carga el repo) y
    neovim entra en un bloque de `~/.bashrc`.
 5. `./actualizar` es `git pull` y `./install` de lo que tengas instalado.
    Cada `./install` apunta en `~/.local/state/tmux-config/` qué paquetes puso
@@ -35,7 +35,7 @@ con `Alt+h`: dentro de tmux y, con zsh global, también fuera.
 | Ruta | Qué es | ¿La editas? |
 |---|---|---|
 | [`.tmux.conf`](.tmux.conf) | Config de tmux. Está en la raíz porque el `~/.tmux.conf` de cada servidor enlaza aquí; se explica en [`tmux/`](tmux/README.md) | Sí |
-| [`zsh/`](zsh/README.md) | Config de zsh (`.zshrc`), su instalador y `zshenv` (el `~/.zshenv` de `--global`) | Sí, el `.zshrc` |
+| [`zsh/`](zsh/README.md) | Config de zsh (`.zshrc`), su instalador y `zshenv` (lo que carga el `~/.zshenv` de `--global`) | Sí, el `.zshrc` |
 | [`nvim/`](nvim/README.md) | Config de neovim: opciones, atajos, plugins y LSP | Sí |
 | [`docs/`](docs/) | `GUIA.md` (tmux paso a paso) y `CHEATSHEET.md` (mapa de atajos): lo que abren `Alt+h` y `Espacio ?` | Si cambias atajos |
 | [`tmux/`](tmux/README.md) | Instalador y desinstalador de tmux | No |
@@ -87,7 +87,8 @@ fuera](#dentro-de-tmux-o-también-fuera).
   `./install` por los componentes que tengas, así que no hace falta saber qué
   cambió. Con `--actualizar`, también los paquetes; con `-y`, sin preguntar si
   el pull trae un paquete nuevo. Si hay cambios locales que chocan con el
-  pull, no instala nada.
+  pull, no instala nada. Antes del pull prueba el zsh nuevo: si no carga limpio
+  con el zsh de esa máquina, no actualiza y sigue la versión de antes.
 - `./uninstall <componente>` enseña lo que va a hacer y pide confirmación.
   Solo quita los paquetes que instaló él; los que ya estaban, no. No cierra
   los tmux en marcha: siguen con sus sesiones hasta que los cierres.
@@ -108,11 +109,14 @@ La primera vez que instalas zsh o vim con terminal, `./install` lo pregunta
 (`[T]mux/[g]lobal`); sin terminal o con `-y`, solo dentro de tmux. Lo elegido
 queda apuntado (`~/.local/state/tmux-config/<componente>.global`) y
 `./actualizar` lo mantiene sin preguntar. El plan enseña cada cambio de fuera
-como `cambiar` y pide confirmación.
+como `cambiar` y pide confirmación. Al pasar zsh a global, avisa también de lo
+que tenías en `~/.bashrc` y zsh no leerá (nvm, alias, PATH): va en
+`~/.zshrc.local`. Qué hacer si algo va mal (repo movido, quitar zsh, `sudo
+-s`): [zsh/](zsh/README.md#si-algo-va-mal).
 
 | | Solo tmux (por defecto) | `--global` |
 |---|---|---|
-| zsh | En los panes de tmux | También es tu shell de login (`sudo usermod -s`), y `~/.zshenv` → repo le pone la misma config |
+| zsh | En los panes de tmux | También es tu shell de login (`sudo usermod -s`), y `~/.zshenv` (que carga el repo) le pone la misma config |
 | `nvim`, `vi`, `vim`, `EDITOR` | En los panes de tmux | También fuera: un bloque al final de `~/.bashrc`, y lo mismo en el zsh de fuera |
 | `ssh host comando` | bash | zsh, si zsh es global (`zsh -c`: un bash-ismo en esa línea puede fallar) |
 | Scripts (`#!/bin/bash`), root y otros usuarios | Como siempre | Como siempre |
@@ -187,7 +191,7 @@ dentro de tmux:
 | Plugins y servidores LSP de neovim | `~/.local/share/tmux-config-nvim` |
 | Historial | `~/.zsh_history`; deshacer de neovim en `~/.local/state/tmux-config-nvim` |
 | Qué paquetes instaló cada componente | `~/.local/state/tmux-config/` |
-| Con `./install zsh --global` | `~/.zshenv` → repo (`zsh/zshenv`), zsh como shell de login, y la de antes en `~/.local/state/tmux-config/zsh.global` |
+| Con `./install zsh --global` | `~/.zshenv`, que carga `zsh/zshenv` (por `~/.local/opt/tmux-config/zsh/zshenv` → repo), zsh como shell de login, y la de antes en `~/.local/state/tmux-config/zsh.global` |
 | Con `./install vim --global` | Un bloque al final de `~/.bashrc`, entre `# >>> tmux-config >>>` y `# <<< tmux-config <<<` |
 
 `~/.zshrc`, `~/.vimrc` y `~/.config/nvim` no se tocan: siguen siendo tuyos (con
