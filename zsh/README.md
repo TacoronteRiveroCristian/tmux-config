@@ -20,6 +20,24 @@ a una carpeta por parte de su nombre (`z tmux`), ejemplos de uso de un comando
 (`tldr tar`) y menú de completado con Tab. Las teclas están en la sección "En
 zsh" de [docs/CHEATSHEET.md](../docs/CHEATSHEET.md#en-zsh-si-instalaste-install-zsh).
 
+- `Alt+d` busca en todo el disco mientras escribes y pone la ruta completa en la
+  línea. Se salta `/proc`, `/sys`, `/dev`, `/run`, `/snap`, `.git`,
+  `node_modules`, `__pycache__` y `.cache` (`_tc_ruido` en `.zshrc`). Con fd
+  busca más rápido; sin fd, con `find`.
+- Con fd, `Ctrl+T` y `Alt+c` también enseñan los ocultos y lo que ignora git
+  (`.env`), sin esas carpetas. Con bat, `Ctrl+T` y `Alt+d` enseñan el fichero
+  marcado.
+- `Ctrl+X Ctrl+E` abre el comando que estás escribiendo en el editor. Al guardar
+  y salir vuelve a la línea sin ejecutarse (en bash sí se ejecuta).
+- `Alt+Supr` o `Ctrl+Supr` borran la palabra de delante (lo que en bash hace
+  `Alt+d`); `Alt+Retroceso` o `Ctrl+W`, la de atrás.
+- Un comando que no existe dice qué paquete lo trae, si está
+  `command-not-found` (Ubuntu lo trae de serie).
+- `ncdu /ruta`: qué carpetas llenan el disco.
+- `Alt+h` y `tmux-guia` abren el mapa de atajos y la guía. Dentro de tmux,
+  `Alt+h` lo abre tmux en una ventana flotante; fuera (con `--global`), zsh a
+  pantalla completa. Sustituye a `run-help` de zsh (el man del comando).
+
 - Colores mientras escribes: un comando que no existe sale en rojo.
 - El historial se comparte entre panes, y un comando que empieza por espacio
   no se guarda (para tokens y contraseñas).
@@ -44,7 +62,7 @@ Por secciones. El orden importa:
 | Completado | Cómo se comporta Tab (`zstyle`) |
 | Prompt | El `PROMPT` |
 | Alias y colores | Los `alias`, el PATH y el editor |
-| Plugins | fzf, zoxide, sugerencias y colores, si están instalados |
+| Plugins | fzf (con fd y bat), `Alt+d`, zoxide, sugerencias y colores, si están instalados |
 | Local | Carga `~/.zshrc.local` |
 
 - Un alias nuevo va en "Alias y colores".
@@ -87,7 +105,8 @@ Tras `./actualizar`, los panes nuevos cargan la config. En uno ya abierto:
 Se puede ejecutar tantas veces como se quiera:
 
 1. Instala `zsh`, `zsh-autosuggestions`, `zsh-syntax-highlighting`, `fzf`,
-   `zoxide` y `tealdeer` (el comando `tldr`) si faltan (tabla `zsh/paquetes`;
+   `zoxide`, `tealdeer` (el comando `tldr`), `fd-find`, `bat` y `ncdu` si
+   faltan (tabla `zsh/paquetes`;
    lo hace `./install` tras enseñar el plan), y descarga las páginas de `tldr`.
    Lo que no está en los repos activos se salta, y el plan dice qué se pierde
    sin cada uno: en Rocky/RHEL casi todo viene de EPEL (no lo activa por su

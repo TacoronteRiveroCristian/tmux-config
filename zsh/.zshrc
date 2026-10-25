@@ -36,8 +36,9 @@ unsetopt beep
 
 # --- Teclado: emacs, como bash -------------------------------------------------
 #
-# Sin esto, zsh elige el modo vi si $EDITOR o $VISUAL contienen "vi". Alt+b/f/d/.
-# hacen lo mismo que en bash (por eso tmux no los usa).
+# Sin esto, zsh elige el modo vi si $EDITOR o $VISUAL contienen "vi". Alt+b/f/.
+# hacen lo mismo que en bash, y Alt+d busca en todo el disco (en "Plugins"): por
+# eso tmux no los usa.
 
 bindkey -e
 bindkey '^U' backward-kill-line          # como bash: borrar hasta el principio
@@ -48,6 +49,8 @@ bindkey '^[OF' end-of-line
 bindkey '^[[1~' beginning-of-line
 bindkey '^[[4~' end-of-line
 bindkey '^[[3~' delete-char              # Supr
+bindkey '^[[3;3~' kill-word              # Alt+Supr / Ctrl+Supr: borrar la palabra de
+bindkey '^[[3;5~' kill-word              # delante (sin esto escriben 3~ o 5~)
 bindkey '^[[1;5D' backward-word          # Ctrl+← / Ctrl+→
 bindkey '^[[1;5C' forward-word
 
@@ -59,6 +62,21 @@ bindkey '^[[A' up-line-or-beginning-search
 bindkey '^[OA' up-line-or-beginning-search
 bindkey '^[[B' down-line-or-beginning-search
 bindkey '^[OB' down-line-or-beginning-search
+
+# Ctrl+X Ctrl+E: el comando que estás escribiendo, en el editor ($EDITOR); al
+# guardar y salir vuelve a la línea, sin ejecutarse (bash sí lo ejecuta)
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey '^X^E' edit-command-line
+
+# Alt+h y tmux-guia: el mapa de atajos y la guía (bin/tmux-guia del repo de este
+# fichero), también fuera de tmux con zsh global. Dentro de tmux, Alt+h la abre
+# tmux en una ventana flotante y no llega aquí. Quita run-help (el man del comando)
+_tc_guia=${${(%):-%x}:A:h:h}/bin/tmux-guia
+alias tmux-guia=${(q)_tc_guia}
+_tc_ver_guia() { $_tc_guia </dev/tty; zle reset-prompt }
+zle -N _tc_ver_guia
+bindkey '^[h' _tc_ver_guia
 
 # --- Completado (Tab) ----------------------------------------------------------
 
@@ -102,7 +120,7 @@ alias la='ls -A'
 alias grep='grep --color=auto'
 
 # ~/.local/bin: ~/.profile lo añade al PATH en bash, zsh no lo lee. Delante, los
-# comandos del repo (nvim, vi, vim, tmux-guia): dentro de tmux; fuera (zsh
+# comandos del repo (nvim, vi, vim): dentro de tmux; fuera (zsh
 # --global), solo con ./install vim --global, que lo apunta en vim.global
 typeset -U path
 [[ -d ~/.local/bin ]] && path=(~/.local/bin $path)
@@ -129,6 +147,47 @@ for f in /usr/share/doc/fzf/examples/key-bindings.zsh /usr/share/fzf/shell/key-b
     [[ -r $f ]] && { source $f; break }
 done
 unset f
+
+# fd y bat (en Debian y Ubuntu se llaman fdfind y batcat). Con fd, Ctrl+T y
+# Alt+c buscan también los ocultos y lo que ignora git (.env), sin lo que solo
+# estorba (_tc_ruido). Con bat, Ctrl+T y Alt+d enseñan el fichero marcado.
+_tc_fd=${commands[fdfind]:-${commands[fd]}}
+_tc_bat=${commands[batcat]:-${commands[bat]}}
+_tc_ruido=(.git node_modules __pycache__ .cache)
+if [[ -n $_tc_fd ]]; then
+    FZF_CTRL_T_COMMAND="$_tc_fd --hidden --no-ignore --strip-cwd-prefix ${(j: :)${(@)_tc_ruido/#/--exclude=}}"
+    FZF_ALT_C_COMMAND="$FZF_CTRL_T_COMMAND --type d"
+fi
+[[ -n $_tc_bat ]] && FZF_CTRL_T_OPTS="--preview '$_tc_bat --color=always --style=plain --line-range=:200 {} 2>/dev/null || ls -lA {}'"
+
+# Alt+d: buscar en todo el disco y escribir la ruta completa en la línea (Tab
+# marca varias). Las rutas salen mientras busca: se puede escribir ya. Sin
+# /proc, /sys, /dev, /run ni /snap, ni _tc_ruido; lo que no puedes leer no sale.
+# Con fd; sin él, con find (más lento).
+_tc_rutas() {
+    local -a raices=(/*(N/)) poda=()   # (/): sin /bin, /lib ni /sbin, enlaces a /usr
+    local r
+    raices=(${raices:#/(proc|sys|dev|run|snap)})
+    if [[ -n $_tc_fd ]]; then
+        $_tc_fd --hidden --no-ignore --color=never ${_tc_ruido/#/--exclude=} . $raices 2>/dev/null
+    else
+        for r in $_tc_ruido; do poda+=(-o -name $r); done
+        find $raices \( ${poda[2,-1]} \) -prune -o -print 2>/dev/null
+    fi
+}
+_tc_buscar_todo() {
+    local -a sel vista=()
+    [[ -n $_tc_bat ]] && vista=(--preview "$_tc_bat --color=always --style=plain --line-range=:200 {} 2>/dev/null || ls -lA {}")
+    sel=("${(@f)$(_tc_rutas | fzf -m --height=${FZF_TMUX_HEIGHT:-40%} --reverse --prompt='todo el disco> ' $vista)}")
+    [[ -n $sel ]] && LBUFFER+="${(j: :)${(@q)sel}} "
+    zle reset-prompt
+}
+zle -N _tc_buscar_todo
+bindkey '^[d' _tc_buscar_todo
+
+# Un comando que no existe: dice qué paquete lo trae, si está command-not-found
+# (Ubuntu lo trae de serie)
+[[ -r /etc/zsh_command_not_found ]] && source /etc/zsh_command_not_found
 
 # zoxide: "z parte-del-nombre" salta a una carpeta en la que ya estuviste; "zi"
 # la elige de una lista (fzf). Aprende sola con cada cd.

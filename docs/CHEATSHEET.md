@@ -43,7 +43,8 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
 
 ## Ayuda
 
-    Alt+h                 esta guía (q sale)
+    Alt+h                 esta guía (q sale); también fuera de tmux, con zsh
+                          global (./install --global zsh)
     Ctrl+B ?              todos los atajos de tmux (q sale)
     Ctrl+B R              recargar la configuración
 
@@ -60,20 +61,28 @@ Ocasional: Ctrl+B, soltar las dos teclas, y luego la tecla.
     tmux new -A -s trabajo        entrar en la sesión (la crea si no existe)
     tmux ls                       listar sesiones
     tmux kill-session -t trabajo  eliminar una sesión
-    tmux-guia                     esta guía (en un pane de tmux con zsh)
+    tmux-guia                     esta guía, desde zsh (como Alt+h)
 
 ## En zsh (si instalaste ./install zsh)
 
     → o Fin               aceptar la sugerencia en gris
     Ctrl+→                aceptar solo una palabra de la sugerencia
+    Ctrl+A / Ctrl+E       ir al principio / al final de la línea (Inicio / Fin)
+    Ctrl+← / Ctrl+→       palabra anterior / siguiente (Alt+b / Alt+f)
+    Alt+Supr / Ctrl+Supr  borrar la palabra de delante
+    Alt+Retroceso         borrar la palabra de atrás (también Ctrl+W)
+    Ctrl+U / Ctrl+K       borrar hasta el principio / hasta el final
     ↑ / ↓                 historial filtrado por lo ya escrito
     Ctrl+R                buscar en el historial (fzf)
     Ctrl+T / Alt+c        insertar un fichero / cambiar de directorio (fzf)
+    Alt+d                 buscar en todo el disco y escribir la ruta (fzf)
+    Ctrl+X Ctrl+E         editar en el editor (neovim) el comando que escribes
     Tab Tab               menú de completado, flechas para elegir
     " comando"            empezar con espacio: no se guarda en el historial
     z texto               ir a una carpeta en la que ya estuviste (z tmux)
     zi                    elegir entre las carpetas aprendidas (fzf)
     tldr comando          ejemplos de uso de un comando (tldr tar)
+    ncdu /ruta            qué carpetas llenan el disco (q sale)
 
 ## En neovim (si instalaste ./install vim)
 

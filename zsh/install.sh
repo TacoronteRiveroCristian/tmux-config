@@ -8,11 +8,12 @@
 #   ./install zsh --solo-tmux   solo en los panes de tmux (lo de siempre)
 #
 # Qué hace:
-#   1. zsh, zsh-autosuggestions, zsh-syntax-highlighting, fzf, zoxide y tealdeer
-#      (el comando tldr; tabla zsh/paquetes) los instala antes ./install, si
-#      faltan. Lo que no esté en los repos activos (en Rocky/RHEL vienen de EPEL;
-#      tealdeer no está en Ubuntu 22.04) se salta y el plan dice qué se pierde:
-#      no añade repos por su cuenta, y zsh funciona sin ellos. Los que instala
+#   1. zsh, zsh-autosuggestions, zsh-syntax-highlighting, fzf, zoxide, tealdeer
+#      (el comando tldr), fd-find, bat y ncdu (tabla zsh/paquetes) los instala
+#      antes ./install, si faltan. Lo que no esté en los repos activos (en
+#      Rocky/RHEL vienen de EPEL; tealdeer no está en Ubuntu 22.04) se salta y
+#      el plan dice qué se pierde: no añade repos por su cuenta, y zsh
+#      funciona sin ellos. Los que instala
 #      él los apunta en ~/.local/state/tmux-config/zsh.paquetes: ./uninstall zsh
 #      quita esos y no los que ya estaban.
 #   2. Descarga las páginas de tldr si no están (con --actualizar, de nuevo).

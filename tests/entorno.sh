@@ -8,10 +8,10 @@
 #
 # Comprueba: install/actualizar, que un paquete que choca con uno del repo
 # BLOQUEA y no se quita, un pane nuevo de tmux (zsh, vim = neovim del repo, z),
-# fuera de tmux nada del repo, un .py en neovim (resaltado, pyright), los
+# fuera de tmux nada del repo, Alt+d (buscar en todo el disco) con fd y bat, un .py en neovim (resaltado, pyright), los
 # servidores LSP en la versión del registro fijado, que sudoedit no deja su
 # historial de deshacer en el HOME, tldr, que bash no se toca, --global (zsh de
-# login y neovim en ~/.bashrc, también fuera de tmux) y --solo-tmux, que lo
+# login y neovim en ~/.bashrc, también fuera de tmux, con Alt+h) y --solo-tmux, que lo
 # deja como estaba, y que uninstall no deja nada, deshace --global, respeta lo
 # que ya había y no cierra un tmux abierto.
 . /tests/comun.sh
@@ -51,7 +51,7 @@ esac
 echo "=== $PERFIL: $PRETTY_NAME ($(uname -m)), usuario $U${DESDE:+, desde $DESDE}"
 echo "    node $(node -v 2>/dev/null || echo -) · npm $(npm -v 2>/dev/null || echo -) · tmux previo: $(command -v tmux || echo -) · vim previo: $(command -v vim || echo -)"
 # Lo que ya estaba: uninstall no lo quita
-antes="$(dpkg-query -W -f='${Package} ${Status}\n' tmux vim nodejs bash-completion zoxide tealdeer 2>/dev/null | awk '/install ok installed/ {print $1}' | tr '\n' ' ')"
+antes="$(dpkg-query -W -f='${Package} ${Status}\n' tmux vim nodejs bash-completion zoxide tealdeer fd-find bat ncdu 2>/dev/null | awk '/install ok installed/ {print $1}' | tr '\n' ' ')"
 hay_tldr=0; LC_ALL=C apt-cache policy tealdeer 2>/dev/null | grep 'Candidate: [^(]' >/dev/null && hay_tldr=1
 
 upstream
@@ -125,6 +125,39 @@ check "EDITOR en tmux es ese neovim" has "EDITOR=$H/.local/opt/tmux-config/bin/n
 check "z salta a una carpeta ya visitada" has "z=$H/GitHub/personal/tmux-config" "$p"
 f="$(su - "$U" -c 'bash -ic "command -v vim nvim; type z; echo EDITOR=\$EDITOR"' 2>&1)"; grep -v '^bash:'<<<"$f" | sangra "fuera: "
 check "fuera de tmux nada del repo (ni vim, ni EDITOR, ni z)" bash -c "! grep -q tmux-config <<<\"\$1\" && ! grep -q 'z is' <<<\"\$1\"" _ "$f"
+
+# Alt+d en un pane de verdad: "echo ", Alt+d, buscar un fichero, Enter cuando
+# fzf lo enseña (escribe su ruta en la línea) y ejecutarlo. Y lo que encuentra,
+# con fd y sin él (find): todo el disco, con los ocultos, sin /proc, /sys, /dev,
+# /run, /snap ni _tc_ruido
+paso "zsh: Alt+d, fd, bat, Ctrl+X Ctrl+E y Alt+Supr"
+mkdir -p "$H/proyecto/node_modules/x" "$H/proyecto/.git" "$H/proyecto/__pycache__" "$H/proyecto/.cache"
+touch "$H/proyecto/aguja-unica.txt" "$H/proyecto/.env" "$H/proyecto/node_modules/x/aguja-unica-ruido" "$H/proyecto/.git/aguja-unica-git" \
+      "$H/proyecto/__pycache__/aguja-unica-pyc" "$H/proyecto/.cache/aguja-unica-cache"
+cat > "$H/probe2" <<'P'
+{ bindkey '^[d'; bindkey '^X^E'; bindkey '^[[3;3~'; bindkey '^[[3;5~'; echo "ctrlt=$FZF_CTRL_T_COMMAND"; echo "bat=$_tc_bat"; } > ~/teclas.txt 2>&1
+_tc_rutas > ~/rutas-fd.txt 2>&1
+( _tc_fd=; _tc_rutas ) > ~/rutas-find.txt 2>&1
+: > ~/probe2.ok
+P
+chown -R "$U:" "$H/proyecto" "$H/probe2"
+# espera_a CONDICIÓN: hasta 3 min (bajo QEMU, recorrer el disco tarda)
+espera_a='for i in $(seq 180); do eval "$1" && break; sleep 1; done'
+as "$U" "esp() { $espera_a; }
+         tmux new-session -d -s b -x 150 -y 40; sleep $w; tmux send-keys -t b '. ~/probe2' Enter; esp '[ -e ~/probe2.ok ]'
+         tmux send-keys -t b 'echo ' M-d; sleep $w; tmux send-keys -t b -l \"'aguja-unica\"
+         esp 'tmux capture-pane -p -t b | grep -q proyecto/aguja-unica.txt'; tmux send-keys -t b Enter; sleep $w
+         tmux send-keys -t b -l ' > ~/alt-d.txt'; tmux send-keys -t b Enter; esp '[ -s ~/alt-d.txt ]'; tmux kill-server" >/dev/null
+k="$(cat "$H/teclas.txt" 2>/dev/null)"; sangra "pane: " <<<"$k"
+check "Alt+d, Ctrl+X Ctrl+E y Alt+Supr / Ctrl+Supr puestos" bash -c "grep -qF '\"^[d\" _tc_buscar_todo' <<<\"\$1\" && grep -qF '\"^X^E\" edit-command-line' <<<\"\$1\" && grep -qF '\"^[[3;3~\" kill-word' <<<\"\$1\" && grep -qF '\"^[[3;5~\" kill-word' <<<\"\$1\"" _ "$k"
+check "Ctrl+T busca con fd, con vista previa de bat" bash -c "grep -q '^ctrlt=/usr/bin/fdfind ' <<<\"\$1\" && grep -q '^bat=/usr/bin/batcat' <<<\"\$1\"" _ "$k"
+for b in fd find; do
+    r="$H/rutas-$b.txt"; echo "      Alt+d con $b: $(wc -l < "$r") rutas"
+    check "Alt+d con $b: todo el disco, con los ocultos" bash -c "grep -qx /etc/passwd '$r' && grep -qx '$H/proyecto/.env' '$r' && grep -qx '$H/proyecto/aguja-unica.txt' '$r'"
+    check "Alt+d con $b: sin /proc, /sys, /dev, /run, /snap ni .git, node_modules, __pycache__ o .cache" \
+        bash -c "! grep -qE '^/(proc|sys|dev|run|snap)(/|\$)|/(\.git|node_modules|__pycache__|\.cache)(/|\$)' '$r'"
+done
+check "Alt+d escribe la ruta completa en la línea" [ "$(cat "$H/alt-d.txt" 2>/dev/null)" = "$H/proyecto/aguja-unica.txt" ]
 
 paso "tldr"
 if [ $hay_tldr -eq 1 ]; then
@@ -209,6 +242,15 @@ check "la shell de login es zsh" bash -c "[[ \$(getent passwd $U | cut -d: -f7) 
 f="$(su - "$U" -c 'exec $SHELL -lic "echo shell=\${ZSH_VERSION:+zsh}; command -v vim; echo EDITOR=\$EDITOR; type z; echo perfil=\$TC_PERFIL_D"' 2>&1)"; sangra "fuera: " <<<"$f"
 check "fuera de tmux, zsh con la config del repo (vim, EDITOR y z)" bash -c "grep -q shell=zsh <<<\"\$1\" && grep -q '$H/.local/opt/tmux-config/bin/vim' <<<\"\$1\" && grep -q 'EDITOR=$H/.local/opt/tmux-config/bin/nvim' <<<\"\$1\" && grep -q 'z is' <<<\"\$1\"" _ "$f"
 check "el zsh de login lee /etc/profile.d, como bash" has "perfil=si" "$f"
+# Alt+h fuera de tmux, en un terminal que no se queda la tecla (un tmux sin config
+# y sin TMUX en el pane): abre la guía, y q vuelve a lo que estabas escribiendo
+as "$U" "esp() { $espera_a; }
+         tmux -L fuera -f /dev/null new-session -d -s f -x 100 -y 30 'env -u TMUX \$SHELL -l'; sleep $w
+         tmux -L fuera send-keys -t f -l 'echo hola'; tmux -L fuera send-keys -t f M-h
+         esp 'tmux -L fuera capture-pane -p -t f | grep -q \"Mapa de atajos\"' && tmux -L fuera capture-pane -p -t f > ~/alt-h.txt
+         tmux -L fuera send-keys -t f q; sleep $w; tmux -L fuera send-keys -t f -l ' > ~/alt-h-linea.txt'; tmux -L fuera send-keys -t f Enter
+         esp '[ -s ~/alt-h-linea.txt ]'; tmux -L fuera kill-server" >/dev/null
+check "fuera de tmux, Alt+h abre la guía y q vuelve a la línea" bash -c "grep -q '^# Mapa de atajos tmux' $H/alt-h.txt && [ \"\$(cat $H/alt-h-linea.txt 2>/dev/null)\" = hola ]"
 f="$(su - "$U" -c 'bash -ic "command -v vim; echo EDITOR=\$EDITOR"' 2>&1)"
 check "fuera de tmux, en bash, vim y EDITOR son el neovim del repo" bash -c "grep -q '$H/.local/opt/tmux-config/bin/vim' <<<\"\$1\" && grep -q 'EDITOR=$H/.local/opt/tmux-config/bin/nvim' <<<\"\$1\"" _ "$f"
 check "\"ssh host comando\" no saca nada más" [ "$(su - "$U" -c 'echo hola' 2>&1)" = hola ]
@@ -245,7 +287,7 @@ check "sin ~/.tmux.conf ni config de neovim del repo" bash -c "[ ! -L $H/.tmux.c
 for pk in $antes; do
     check "conserva $pk, que ya estaba" bash -c "dpkg-query -W -f='\${Status}' $pk 2>/dev/null | grep -q 'install ok installed'"
 done
-for pk in zoxide tealdeer; do
+for pk in zoxide tealdeer fd-find bat ncdu; do
     [[ " $antes " == *" $pk "* ]] && continue
     check "quita $pk, que instaló él" bash -c "! dpkg-query -W -f='\${Status}' $pk 2>/dev/null | grep -q 'install ok installed'"
 done

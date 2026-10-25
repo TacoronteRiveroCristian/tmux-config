@@ -144,15 +144,15 @@ La configuración no se aplica
     ¿Estás en byobu? Byobu no carga esta configuración: usa "tmux".
     Si has cambiado .tmux.conf: Ctrl+B R para recargar.
 
-Fuera de tmux no tengo mi zsh, ni neovim, ni tmux-guia
+Fuera de tmux no tengo mi zsh, ni neovim, ni la guía (Alt+h)
     Es lo de por defecto: solo existen dentro de tmux. Entra con
     tmux new -A -s trabajo. Para tenerlos también fuera:
     ./install --global zsh vim (en la carpeta del repo).
 
 ## 11. Más ayuda
 
-    Alt+h               esta guía, dentro de tmux
-    tmux-guia           esta guía, en un pane con zsh (./install zsh)
+    Alt+h               esta guía, en tmux (fuera, con zsh global)
+    tmux-guia           esta guía, desde zsh (./install zsh)
     Ctrl+B ?            todos los atajos de tmux (q para salir)
 
 Para cambiar atajos o la configuración: README.md del repo, sección

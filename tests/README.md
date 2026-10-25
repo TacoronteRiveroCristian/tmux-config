@@ -23,13 +23,16 @@ En cada máquina comprueba que `./install --check` no toca nada, que sin
 terminal y sin `-y` no instala, que un paquete tuyo que choca con uno del repo
 para el plan (`BLOQUEA`) y no se quita, que install y actualizar terminan bien
 (y que repetir no pide sudo), que un pane nuevo de tmux arranca zsh con `vim` =
-el neovim del repo y `z`, que fuera de tmux no hay nada del repo, que un `.py`
+el neovim del repo y `z`, que fuera de tmux no hay nada del repo, que `Alt+d`
+escribe la ruta de un fichero buscado en todo el disco (con fd, sin `.git` ni
+`node_modules`) y `Ctrl+T` usa fd y bat, que un `.py`
 sale con resaltado y pyright, que los servidores LSP están en la versión del
 registro de mason fijado (y que uno en otra versión vuelve a ella), que
 `sudoedit` no deja en el HOME el historial de deshacer de la copia, que `tldr`
 funciona, que bash no se toca, que `--global` deja zsh de shell de login y
-neovim en `~/.bashrc` (fuera de tmux, igual que dentro; `ssh host comando`, sin
-ruido; `./actualizar` lo mantiene) y `--solo-tmux` lo deja todo como estaba, y
+neovim en `~/.bashrc` (fuera de tmux, igual que dentro, y `Alt+h` abre la guía;
+`ssh host comando`, sin ruido; `./actualizar` lo mantiene) y `--solo-tmux` lo
+deja todo como estaba, y
 que uninstall no deja restos, deshace `--global`, respeta lo que ya estaba y no
 cierra un tmux abierto.
 

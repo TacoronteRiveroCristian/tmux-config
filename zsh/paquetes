@@ -1,6 +1,8 @@
 # zsh/paquetes — lo que instala ./install zsh con apt/dnf. Columnas y cómo se
 # usa: lib/paquetes.sh. Salvo zsh, en Rocky/RHEL vienen de EPEL; tealdeer no está
 # en Ubuntu 22.04. tealdeer, solo si no hay ya un tldr: otros clientes chocan con él.
+# fd-find y bat dan los comandos fdfind y batcat en Debian/Ubuntu (fd y bat en
+# Rocky): .zshrc mira los dos nombres.
 #
 # apt                    dnf                      comando  mínimo  con  sin él
 zsh                      zsh                      -        5.8     -    bloquea
@@ -9,3 +11,6 @@ zsh-syntax-highlighting  zsh-syntax-highlighting  -        -       -    sin colo
 fzf                      fzf                      -        -       -    sin Ctrl+R, Ctrl+T ni Alt+c con fzf
 zoxide                   zoxide                   -        -       -    sin z (saltar a carpetas en las que ya estuviste)
 tealdeer                 tealdeer                 tldr     -       -    sin tldr (ejemplos de uso de cada comando)
+fd-find                  fd-find                  -        -       -    Alt+d busca con find, más lento; Ctrl+T y Alt+c, como los trae fzf
+bat                      bat                      -        -       -    sin la vista previa del fichero en Alt+d y Ctrl+T
+ncdu                     ncdu                     -        -       -    sin ncdu (qué carpetas llenan el disco)

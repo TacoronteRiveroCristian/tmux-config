@@ -12,8 +12,8 @@ fuera, `./install --global zsh vim`: [dentro de tmux o también
 fuera](#dentro-de-tmux-o-también-fuera).
 
 ¿Primera vez con tmux? [docs/GUIA.md](docs/GUIA.md) lo explica paso a paso, y
-[docs/CHEATSHEET.md](docs/CHEATSHEET.md) es el mapa de atajos. Dentro de tmux,
-los dos se abren con `Alt+h`.
+[docs/CHEATSHEET.md](docs/CHEATSHEET.md) es el mapa de atajos. Los dos se abren
+con `Alt+h`: dentro de tmux y, con zsh global, también fuera.
 
 ## Cómo funciona
 
@@ -63,7 +63,7 @@ fuera](#dentro-de-tmux-o-también-fuera).
 | Componente | Qué pone | Detalles |
 |---|---|---|
 | `tmux` | tmux y su config | [tmux/](tmux/README.md) |
-| `zsh` | zsh en los panes, con sugerencias, fzf, zoxide y tldr | [zsh/](zsh/README.md) |
+| `zsh` | zsh en los panes, con sugerencias, fzf, zoxide, tldr y un buscador de todo el disco (`Alt+d`) | [zsh/](zsh/README.md) |
 | `vim` | neovim 0.12.5 con árbol de ficheros, buscador, LSP y git; también al escribir `vi` o `vim` | [nvim/](nvim/README.md) |
 
 - `./install` enseña primero el plan: lo que ya está, los paquetes que
