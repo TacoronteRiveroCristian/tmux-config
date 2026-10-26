@@ -146,7 +146,8 @@ apuntado y `./actualizar` lo mantiene. Con `--global`:
    su última línea (rustup lo hace) se conserva al actualizar y al quitarlo.
 3. Tu shell de login pasa a ser zsh (`sudo usermod -s`; tiene que estar en
    `/etc/shells`). La de antes queda en `~/.local/state/tmux-config/zsh.global`.
-   Se nota en las sesiones nuevas.
+   Se nota en las sesiones nuevas: por SSH, al conectar; en el escritorio, al
+   cerrar sesión y volver a entrar.
 4. Al entrar, `zsh/zshenv` carga también lo que bash lee al entrar y el zsh de
    Debian, Ubuntu y Raspberry Pi OS no: `/etc/profile`, `/etc/profile.d` y
    `~/.profile` (PATH, proxies, locale), como `sh`.
@@ -165,6 +166,11 @@ Para neovim, vi y vim fuera de tmux: `./install vim --global`
 
 ### Si algo va mal
 
+- **La terminal del escritorio sigue abriendo bash** (`echo $SHELL` dice
+  `/bin/bash`): usa la shell que se apuntó al entrar en el escritorio, no la de
+  login. Cierra sesión y vuelve a entrar, una vez. Lo mismo con la de VS Code
+  Remote: "Remote-SSH: Kill VS Code Server on Host" y reconectar. Por SSH y en
+  los panes de tmux ya es zsh.
 - **Has movido o borrado el repo:** al entrar, zsh lo avisa en una línea y
   sigue, sin la config. En la carpeta nueva del repo, `./install zsh --global`
   (y `./install` de lo demás). Dentro de un tmux que ya estaba en marcha, los

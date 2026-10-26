@@ -101,7 +101,7 @@ read -r -p "¿Continuar? [s/N] " answer
 # Lo primero: con la shell de login aún en zsh, quitar zsh dejaría sin poder entrar
 if [ -n "$prev" ]; then
     cambiar_shell "$prev"
-    info "tu shell de login vuelve a ser $prev (en las sesiones nuevas)"
+    info "tu shell de login vuelve a ser $prev (en las sesiones nuevas; en el escritorio, al cerrar sesión y volver a entrar)"
 fi
 [ "$zshenv" -eq 0 ] || quitar_zshenv
 # Lo que carga ese ~/.zshenv (también si era de otro clon)

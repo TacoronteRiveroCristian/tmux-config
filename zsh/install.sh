@@ -186,7 +186,7 @@ fuera_global() {
         [ "$nuevo" -eq 0 ] || trap 'rm -f "$st"; exit 130' INT TERM HUP
         ( cambiar_shell "$zsh_bin" ) || { [ "$nuevo" -eq 0 ] || rm -f "$st"; exit 1; }
         trap - INT TERM HUP
-        info "tu shell de login es $zsh_bin: al entrar por SSH (en las sesiones nuevas), zsh con esta config"
+        info "tu shell de login es $zsh_bin: al entrar por SSH (en las sesiones nuevas), zsh con esta config; en el escritorio, cierra sesión y vuelve a entrar (hasta entonces, su terminal abre ${sh##*/})"
     fi
     poner_zshenv
     info "zsh también fuera de tmux; para volver a solo tmux: ./install zsh --solo-tmux"
@@ -199,7 +199,7 @@ fuera_solo_tmux() {
     prev="$(cat "$(global_file zsh)")"
     if [ -n "$prev" ] && [[ "$(shell_login)" == */zsh ]]; then
         cambiar_shell "$prev"
-        info "tu shell de login vuelve a ser $prev (en las sesiones nuevas)"
+        info "tu shell de login vuelve a ser $prev (en las sesiones nuevas; en el escritorio, al cerrar sesión y volver a entrar)"
     fi
     if zshenv_es_nuestro; then quitar_zshenv; fi
     if es_del_repo "$ZSHENV_LINK" zsh/zshenv; then rm "$ZSHENV_LINK"; fi
