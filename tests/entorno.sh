@@ -13,9 +13,9 @@
 # historial de deshacer en el HOME, tldr, que bash no se toca, --global (zsh de
 # login y neovim en ~/.bashrc, también fuera de tmux, con Alt+h; el aviso de lo
 # de ~/.bashrc que zsh no leerá, "ssh host comando" como bash, el ~/.zshenv de
-# antes que se migra y el repo movido) y --solo-tmux, que lo
-# deja como estaba, y que uninstall no deja nada, deshace --global, respeta lo
-# que ya había y no cierra un tmux abierto.
+# antes que se migra y el repo movido, que ./install vuelve a apuntar) y
+# --solo-tmux, que lo deja como estaba, y que uninstall no deja nada, deshace
+# --global, respeta lo que ya había y no cierra un tmux abierto.
 . /tests/comun.sh
 PERFIL="${PERFIL:?}"; DESDE="${DESDE:-}"
 arm=0; [ "$(uname -m)" = aarch64 ] && arm=1
@@ -67,7 +67,7 @@ if [ -n "$DESDE" ]; then
     paso "lo que ya tenía: $DESDE + ./install tmux zsh vim"
     as "$U" "git -C $D reset -q --hard $DESDE"
     # Sin terminal, las versiones con plan piden -y; las anteriores no lo entienden
-    y=""; grep -q -- '--yes' "$H/GitHub/personal/tmux-config/install" && y="-y "
+    y=""; grep -q -- '--yes' "$H/tmux-config/install" && y="-y "
     out="$(as "$U" "cd $D && ./install ${y}tmux zsh vim")"; r=$?
     check "install de $DESDE" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
     has "Missing key" "$out" && echo "      (sale el aviso de la clave de gh y sigue)"
@@ -116,7 +116,7 @@ check "sin enlaces de la versión anterior" bash -c "[ ! -L $H/.zshrc ] && [ ! -
 paso "pane nuevo de tmux"
 cat > "$H/probe" <<'P'
 { echo "shell=${ZSH_VERSION:+zsh}${BASH_VERSION:+bash}"; command -v vim; vim --version | head -1; echo "EDITOR=$EDITOR"
-  cd ~/GitHub/personal/tmux-config; cd /; z tmux-config >/dev/null 2>&1; echo "z=$PWD"; } > ~/pane.txt 2>&1
+  cd ~/tmux-config; cd /; z tmux-config >/dev/null 2>&1; echo "z=$PWD"; } > ~/pane.txt 2>&1
 P
 w=$(espera 3 10)
 as "$U" "tmux new-session -d -s p -x 120 -y 30; sleep $w; tmux send-keys -t p '. ~/probe' Enter; sleep $w; tmux kill-server" >/dev/null
@@ -124,7 +124,7 @@ p="$(cat "$H/pane.txt" 2>/dev/null)"; sangra "pane: " <<<"$p"
 check "el pane arranca zsh" has "shell=zsh" "$p"
 check "vim en tmux es el neovim del repo" bash -c "grep -q '$H/.local/opt/tmux-config/bin/vim' <<<\"\$1\" && grep -q 'NVIM v' <<<\"\$1\"" _ "$p"
 check "EDITOR en tmux es ese neovim" has "EDITOR=$H/.local/opt/tmux-config/bin/nvim" "$p"
-check "z salta a una carpeta ya visitada" has "z=$H/GitHub/personal/tmux-config" "$p"
+check "z salta a una carpeta ya visitada" has "z=$H/tmux-config" "$p"
 f="$(su - "$U" -c 'bash -ic "command -v vim nvim; type z; echo EDITOR=\$EDITOR"' 2>&1)"; grep -v '^bash:'<<<"$f" | sangra "fuera: "
 check "fuera de tmux nada del repo (ni vim, ni EDITOR, ni z)" bash -c "! grep -q tmux-config <<<\"\$1\" && ! grep -q 'z is' <<<\"\$1\"" _ "$f"
 
@@ -203,7 +203,7 @@ fi
 # Los servidores LSP, en la versión del registro fijado en plugins.lua: uno en
 # otra versión (lo instaló otro registro) vuelve a ella con ./install vim
 paso "servidores LSP en la versión del registro fijado"
-fijado="$(grep -o "mason-registry@[^']*" "$H/GitHub/personal/tmux-config/nvim/lua/tc/plugins.lua" | cut -d@ -f2)"
+fijado="$(grep -o "mason-registry@[^']*" "$H/tmux-config/nvim/lua/tc/plugins.lua" | cut -d@ -f2)"
 mason="$H/.local/share/tmux-config-nvim/tmux-config/mason"
 check "registro de mason: el fijado (${fijado:-ninguno})" grep -q "\"version\":\"$fijado\"" "$mason/registries/github/mason-org/mason-registry/info.json"
 rec="$mason/packages/marksman/mason-receipt.json"
@@ -251,7 +251,7 @@ check "install --global" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
 check "el plan dice lo que cambia fuera de tmux" bash -c "grep -q '^  cambiar *tu shell de login: $sh0 → zsh' <<<\"\$1\" && grep -q '^  cambiar *~/.bashrc: un bloque' <<<\"\$1\"" _ "$out"
 check "el plan avisa de lo de ~/.bashrc que zsh no leerá, sin valores" bash -c "grep -q 'zsh no leerá esto' <<<\"\$1\" && grep -qE '~/.bashrc:[0-9]+  export NVM_DIR' <<<\"\$1\" && grep -q 'carga \$NVM_DIR/nvm.sh' <<<\"\$1\" && grep -q 'export TC_SECRETO' <<<\"\$1\" && ! grep -qE 'valor-que-no-debe-salir|alias gs|HISTCONTROL' <<<\"\$1\"" _ "$out"
 check "la shell de login es zsh" bash -c "[[ \$(getent passwd $U | cut -d: -f7) == */zsh ]]"
-check "~/.zshenv es un fichero (no un enlace al repo) que carga zsh/zshenv" bash -c "[ -f $H/.zshenv ] && [ ! -L $H/.zshenv ] && head -1 $H/.zshenv | grep -qx '# ~/.zshenv de tmux-config' && [ \"\$(readlink $H/.local/opt/tmux-config/zsh/zshenv)\" = $H/GitHub/personal/tmux-config/zsh/zshenv ]"
+check "~/.zshenv es un fichero (no un enlace al repo) que carga zsh/zshenv" bash -c "[ -f $H/.zshenv ] && [ ! -L $H/.zshenv ] && head -1 $H/.zshenv | grep -qx '# ~/.zshenv de tmux-config' && [ \"\$(readlink $H/.local/opt/tmux-config/zsh/zshenv)\" = $H/tmux-config/zsh/zshenv ]"
 # Lo que se añade debajo de ~/.zshenv (rustup lo hace) se conserva al reinstalar
 echo 'export TC_DEBAJO=si' >> "$H/.zshenv"
 out="$(as "$U" "cd $D && ./install -y zsh")"; r=$?
@@ -283,15 +283,32 @@ as "$U" "ln -sfn $D/zsh/zshenv ~/.zshenv" >/dev/null
 out="$(as "$U" "cd $D && ./actualizar -y")"; r=$?
 check "./actualizar lo mantiene sin preguntar ni cambiar nada" bash -c "[ $r -eq 0 ] && grep -q 'nada que confirmar' <<<\"\$1\" && [[ \$(getent passwd $U | cut -d: -f7) == */zsh ]] && [ \$(grep -c '^# >>> tmux-config' $H/.bashrc) -eq 1 ]" _ "$out"
 check "y cambia el ~/.zshenv de antes (enlace) por el fichero" bash -c "[ -f $H/.zshenv ] && [ ! -L $H/.zshenv ] && ! ls $H/.zshenv.bak.* >/dev/null 2>&1"
-# Repo movido: al entrar, zsh lo avisa en vez de abrir el asistente de usuario
-# nuevo (y sin config), y "ssh host comando" sigue limpio
-mv "$H/GitHub/personal/tmux-config" "$H/GitHub/personal/tmux-config.movido"
+# Repo movido, a otra carpeta y con otro nombre: al entrar, zsh lo avisa en vez
+# de abrir el asistente de usuario nuevo (y sin config), y "ssh host comando"
+# sigue limpio. En la carpeta nueva, ./install (sin --global: lo mantiene) lo
+# vuelve a apuntar todo ahí, sin backups
+entrar() {
+    as "$U" "tmux -L movido -f /dev/null new-session -d -s m -x 150 -y 20 'env -u TMUX \$SHELL -l'; sleep $w
+             tmux -L movido capture-pane -p -t m > ~/movido.txt; tmux -L movido kill-server" >/dev/null
+    sangra "al entrar: " < <(grep -v '^$' "$H/movido.txt")
+}
+bak0="$(find "$H" -name '*.bak.*' 2>/dev/null | sort)"
+as "$U" "mkdir -p ~/movido && mv $D ~/movido/tc" >/dev/null
+# shellcheck disable=SC2088
+D='~/movido/tc'
 check "repo movido: \"ssh host comando\" sigue limpio" [ "$(su - "$U" -c 'echo hola' 2>&1)" = hola ]
-as "$U" "tmux -L movido -f /dev/null new-session -d -s m -x 150 -y 20 'env -u TMUX \$SHELL -l'; sleep $w
-         tmux -L movido capture-pane -p -t m > ~/movido.txt; tmux -L movido kill-server" >/dev/null
-sangra "al entrar: " < <(grep -v '^$' "$H/movido.txt")
+entrar
 check "repo movido: al entrar lo avisa, sin el asistente de zsh" bash -c "grep -q 'no encuentro la config de zsh' $H/movido.txt && ! grep -q 'Z Shell' $H/movido.txt"
-mv "$H/GitHub/personal/tmux-config.movido" "$H/GitHub/personal/tmux-config"
+out="$(as "$U" "cd $D && ./install -y tmux zsh vim")"; r=$?
+echo "$out" | grep -E '^  backup|AVISO|ERROR|guardada en' | sangra ""
+check "repo movido: ./install en la carpeta nueva" [ $r -eq 0 ]; [ $r -eq 0 ] || echo "$out" | tail -30
+enlaces="$(find "$H/.tmux.conf" "$H/.config/tmux-config-nvim" "$H/.local/opt/tmux-config" -type l -printf '%p -> %l\n' 2>/dev/null)"
+sangra "enlaces: " <<<"$enlaces"
+check "repo movido: todos los enlaces al repo, en la carpeta nueva" bash -c "grep -q '^$H/.tmux.conf -> $H/movido/tc/.tmux.conf$' <<<\"\$1\" && grep -q '/init.lua -> $H/movido/tc/nvim/init.lua$' <<<\"\$1\" && grep -q '/zsh/.zshrc -> $H/movido/tc/zsh/.zshrc$' <<<\"\$1\" && grep -q '/tmux-guia -> $H/movido/tc/bin/tmux-guia$' <<<\"\$1\" && ! grep -q -- '-> $H/tmux-config/' <<<\"\$1\"" _ "$enlaces"
+check "repo movido: sin backups ni \"no es de este repo\"" bash -c "! grep -qE '^  backup|guardada en|no es de este repo' <<<\"\$1\" && [ \"\$2\" = \"\$3\" ]" _ "$out" "$bak0" "$(find "$H" -name '*.bak.*' 2>/dev/null | sort)"
+check "repo movido: sigue --global" bash -c "[[ \$(getent passwd $U | cut -d: -f7) == */zsh ]] && [ \$(grep -c '^# >>> tmux-config' $H/.bashrc) -eq 1 ]"
+entrar
+check "repo movido: al entrar ya no avisa" bash -c "! grep -q 'no encuentro' $H/movido.txt && ! grep -q 'Z Shell' $H/movido.txt"
 
 paso "./install -y --solo-tmux zsh vim"
 echo 'export TC_DEBAJO=si' >> "$H/.zshenv"   # lo de debajo se queda; lo demás, fuera

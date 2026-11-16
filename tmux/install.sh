@@ -12,7 +12,8 @@
 #      solo quita ese, no el que ya estaba (Ubuntu Server lo trae). Con --plan,
 #      este script solo enseña lo suyo del plan: si aparta tu ~/.tmux.conf.
 #   2. Comprueba que .tmux.conf carga sin errores con esa versión de tmux.
-#   3. Enlaza ~/.tmux.conf a este repo (con backup de la config anterior).
+#   3. Enlaza ~/.tmux.conf a este repo (con backup de la config anterior; si
+#      apuntaba a otro clon del repo, o a uno movido, lo cambia sin backup).
 #   4. Enlaza el comando tmux-guia en ~/.local/opt/tmux-config/bin, que solo está
 #      en el PATH dentro de tmux (Alt+h la abre por su ruta en el repo). Quita
 #      ~/.local/bin/tmux-guia si lo enlazó la versión anterior.
@@ -39,7 +40,8 @@ done
 
 # Lo de este componente en el plan de ./install, sin tocar nada
 plan() {
-    if { [ -e "$CONF_DST" ] || [ -L "$CONF_DST" ]; } && ! link_is_ours "$CONF_SRC" "$CONF_DST"; then
+    if { [ -e "$CONF_DST" ] || [ -L "$CONF_DST" ]; } && ! link_is_ours "$CONF_SRC" "$CONF_DST" &&
+        ! es_del_repo "$CONF_DST" .tmux.conf; then
         plan_linea backup "~/.tmux.conf no es de este repo: se guarda como ~/.tmux.conf.bak.<fecha>"
     fi
     # tmux carga /etc/tmux.conf antes que la del usuario: rompería el mapa único
@@ -59,27 +61,14 @@ check_conf() {
     tmux -L "$sock" kill-server
 }
 
-link_conf() {
-    if [ -L "$CONF_DST" ] && [ "$(readlink "$CONF_DST")" = "$CONF_SRC" ]; then
-        info "~/.tmux.conf ya apunta a este repo"
-        return
-    fi
-    if [ -e "$CONF_DST" ] || [ -L "$CONF_DST" ]; then
-        local backup
-        backup="$CONF_DST.bak.$(date +%Y%m%d-%H%M%S)"
-        mv "$CONF_DST" "$backup"
-        info "config anterior guardada en $backup"
-    fi
-    ln -s "$CONF_SRC" "$CONF_DST"
-    info "~/.tmux.conf -> $CONF_SRC"
-}
-
 link_guia() {
     if [ -L "$GUIA_DST" ] && [ "$(readlink "$GUIA_DST")" = "$GUIA_SRC" ]; then
         info "tmux-guia ya apunta a este repo"
-    elif [ -e "$GUIA_DST" ] || [ -L "$GUIA_DST" ]; then
+    elif { [ -e "$GUIA_DST" ] || [ -L "$GUIA_DST" ]; } && ! es_del_repo "$GUIA_DST" bin/tmux-guia; then
         aviso "$GUIA_DST ya existe y no es de este repo: no se toca"
     else
+        # El de otro clon o uno movido se cambia
+        rm -f "$GUIA_DST"
         mkdir -p "$(dirname "$GUIA_DST")"
         ln -s "$GUIA_SRC" "$GUIA_DST"
         info "tmux-guia -> $GUIA_SRC"
@@ -98,7 +87,7 @@ info "$(tmux -V) instalado"
 check_conf
 info "config válida con $(tmux -V)"
 
-link_conf
+link_with_backup "$CONF_SRC" "$CONF_DST" .tmux.conf
 link_guia
 
 tmux_reload

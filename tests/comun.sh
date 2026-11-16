@@ -45,7 +45,7 @@ upstream() {
 # commit_upstream MENSAJE COMANDO: cambia algo en /srv/src y lo sube
 commit_upstream() { (cd /srv/src && eval "$2" && git commit -qam "$1" && git push -q origin main) && chmod -R a+rwX /srv; }
 
-# El clon, donde lo tiene el usuario en sus máquinas (la ~ la expande "su -c")
+# El clon, en la ~ (vale cualquier carpeta: la ~ la expande "su -c")
 # shellcheck disable=SC2088
-D='~/GitHub/personal/tmux-config'
+D='~/tmux-config'
 clonar() { as "$1" "git clone -q /srv/remoto.git $D" >/dev/null; }
