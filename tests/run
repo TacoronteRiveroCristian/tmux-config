@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/run — prueba el repo, con los cambios sin commit, en contenedores Docker que
-# imitan las máquinas donde se usa, con el clon en ~/GitHub/personal/tmux-config.
+# imitan las máquinas donde se usa, con el clon en ~/tmux-config.
 #
 #   tests/run                  todos los perfiles, en paralelo
 #   tests/run pi-trixie ...    solo esos

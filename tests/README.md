@@ -2,7 +2,7 @@
 
 `tests/run` prueba el repo **con los cambios sin commit** en contenedores Docker
 que imitan las máquinas donde se usa, con el clon en
-`~/GitHub/personal/tmux-config`.
+`~/tmux-config`.
 
 ```bash
 tests/run                  # todos, en paralelo
@@ -35,7 +35,8 @@ el plan avisa de lo de `~/.bashrc` que zsh no leerá, sin enseñar valores;
 `ssh host comando`, sin ruido y como bash con un `*` sin coincidencias;
 `./actualizar` lo mantiene y migra el `~/.zshenv` de antes; lo añadido debajo
 de `~/.zshenv` se conserva al reinstalar y al quitarlo; con el repo
-movido, zsh avisa al entrar en vez de abrir su asistente) y `--solo-tmux` lo
+movido, zsh avisa al entrar en vez de abrir su asistente, y `./install` en la
+carpeta nueva lo vuelve a apuntar todo ahí, sin backups) y `--solo-tmux` lo
 deja todo como estaba, y
 que uninstall no deja restos, deshace `--global`, respeta lo que ya estaba y no
 cierra un tmux abierto.

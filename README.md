@@ -49,12 +49,17 @@ con `Alt+h`: dentro de tmux y, con zsh global, también fuera.
 ## Empezar
 
 ```bash
-git clone https://github.com/TacoronteRiveroCristian/tmux-config.git ~/GitHub/personal/tmux-config
-cd ~/GitHub/personal/tmux-config
+git clone https://github.com/TacoronteRiveroCristian/tmux-config.git   # en la carpeta en la que estés
+cd tmux-config
 ./install --check tmux zsh vim   # opcional: el plan, sin tocar nada ni usar sudo
 ./install tmux zsh vim           # o solo los que quieras; ./install sin nada los lista
 tmux new -A -s trabajo
 ```
+
+Vale cualquier carpeta (`~`, `~/GitHub`...): lo que pone `./install` apunta a
+donde esté el clon. Si después lo mueves, en la carpeta nueva `./install tmux zsh
+vim` lo vuelve a apuntar ahí, sin backups y sin cambiar lo de solo tmux o
+también fuera.
 
 La primera vez, con terminal, `./install` pregunta si zsh y vim van solo dentro
 de tmux o también fuera: [dentro de tmux o también

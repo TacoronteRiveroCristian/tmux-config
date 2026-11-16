@@ -89,7 +89,8 @@ plan() {
             fi ;;
         *)  plan_linea sin "neovim: no hay oficial para $(uname -m) → sin neovim (lo demás sí se instala)" ;;
     esac
-    if { [ -e "$NVIM_CONF/init.lua" ] || [ -L "$NVIM_CONF/init.lua" ]; } && ! link_is_ours "$INIT_SRC" "$NVIM_CONF/init.lua"; then
+    if { [ -e "$NVIM_CONF/init.lua" ] || [ -L "$NVIM_CONF/init.lua" ]; } && ! link_is_ours "$INIT_SRC" "$NVIM_CONF/init.lua" &&
+        ! es_del_repo "$NVIM_CONF/init.lua" nvim/init.lua; then
         plan_linea backup "${NVIM_CONF/#$HOME/\~}/init.lua no es de este repo: se guarda como init.lua.bak.<fecha>"
     fi
     # Fuera de tmux (--global): el bloque de ~/.bashrc. Sin neovim para esta
@@ -334,7 +335,7 @@ install_nvim
 if [ "$NVIM_OK" -eq 1 ]; then
     copiar_estado
     setup_nvim
-    link_with_backup "$INIT_SRC" "$NVIM_CONF/init.lua"
+    link_with_backup "$INIT_SRC" "$NVIM_CONF/init.lua" nvim/init.lua
     link_bin
 fi
 fuera
